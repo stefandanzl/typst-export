@@ -34,7 +34,7 @@ export class EmbedWikilink implements node {
 	display: string | undefined;
 	label: string | undefined;
 	static get_regexp(): RegExp {
-		return /(?:(\S*?)::)?!\[\[([\s\S]*?)(?:#([\s\S]+?))?(?:\|([\s\S]*?))?\]\]/g;
+		return /(?:(\S*?)::\s*\n?\s*)?!\[\[([\s\S]*?)(?:#([\s\S]+?))?(?:\|([\s\S]*?))?\]\]/g;
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
@@ -241,7 +241,7 @@ export class Wikilink implements node {
 	header: string | undefined;
 	displayed: string | undefined;
 	static get_regexp(): RegExp {
-		return /(?:(\S*?)::)?\[\[([\s\S]*?)(?:\#([\s\S]*?))?(?:\|([\s\S]*?))?\]\]/g;
+		return /(?:(\S*?)::\s*\n?\s*)?\[\[([\s\S]*?)(?:\#([\s\S]*?))?(?:\|([\s\S]*?))?\]\]/g;
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
