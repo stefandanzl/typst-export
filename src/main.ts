@@ -95,7 +95,7 @@ export default class ExportPaperPlugin extends Plugin {
 			fs.mkdirSync(output_folder_path, { recursive: true });
 		}
 
-		let export_message = "Exporting to external folder:\n";
+		let export_message = "SUCCESS!!\nExporting to external folder:\n";
 		const preamble_file =
 			this.app.vault.getFileByPath(this.settings.preamble_file) ??
 			undefined;
