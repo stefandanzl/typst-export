@@ -276,7 +276,7 @@ export default class ExportPaperPlugin extends Plugin {
 		const the_preamble_file = this.app.vault.getFileByPath(
 			this.settings.preamble_file,
 		);
-		let export_message = "Exporting the current file:\n";
+		let export_message = "SUCCESS!!\nExporting the current file:\n";
 		const preamble_file = the_preamble_file ? the_preamble_file : undefined;
 		if (preamble_file !== undefined) {
 			const new_preamble = path.join(output_folder_path, "preamble.sty");
