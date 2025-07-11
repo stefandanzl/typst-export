@@ -14,6 +14,20 @@ Another \\emph{emph} \\textbf{strong}
 \\texttt{code} \\texttt{code\_underscore}
 `);
 	});
+
+	test("latex escaping", async () => {
+		const result = await get_latex_file_contents(
+			"latex_escaping",
+			DEFAULT_SETTINGS,
+		);
+		expect(result)
+			.toEqual(`Special characters: \\#, \\$, \\%, \\&, \\_, \\{, \\}, \\textbackslash, and \\ldots{}
+
+Math symbols: $\\infty$, $\\pm$, $\\times$, $\\neq$, $\\leq$, and $\\alpha$
+
+Currency and others: \\euro{}, \\pounds{}, \\\copyright{}, \\checkmark{}
+`);
+	});
 	test("citation", async () => {
 		let settings = DEFAULT_SETTINGS;
 		settings.default_citation_command = "othercite";

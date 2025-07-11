@@ -1,6 +1,7 @@
 import { node, metadata_for_unroll, ExportPluginSettings } from "./interfaces";
 import { explicit_label } from "./labels";
 import { format_label } from "./labels";
+import { escape_latex } from "./utils";
 
 export function split_inline<ClassObj extends node>(
 	inline_arr: node[],
@@ -89,7 +90,7 @@ export class Text implements node {
 		buffer_offset: number,
 		settings: ExportPluginSettings,
 	) {
-		return buffer_offset + buffer.write(this.content, buffer_offset);
+		return buffer_offset + buffer.write(escape_latex(this.content), buffer_offset);
 	}
 }
 

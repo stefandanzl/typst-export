@@ -19,7 +19,6 @@ import {
 } from "./parseMarkdown";
 import { Paragraph, BlankLine } from "./display";
 import {
-	escape_latex,
 	strip_newlines,
 	notice_and_warn,
 	find_image_file,
@@ -63,7 +62,7 @@ export class EmbedWikilink implements node {
 			if (file === undefined) {
 				const err_msg =
 					"Content not found: Could not find the content of the plot with image '" +
-					escape_latex(this.content) +
+					this.content +
 					"'";
 				notice_and_warn(err_msg);
 				return [
@@ -96,13 +95,13 @@ export class EmbedWikilink implements node {
 		if (return_data === undefined) {
 			const err_msg =
 				"Content not found: Could not find the content of \\emph{" +
-				escape_latex(this.content) +
+				this.content +
 				"} with header \\emph{" +
 				this.header +
 				"}";
 			const other_err_msg =
 				"Content not found: Could not find the content of '" +
-				escape_latex(this.content) +
+				this.content +
 				"' with header '" +
 				this.header +
 				"'";
