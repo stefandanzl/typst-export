@@ -28,6 +28,7 @@ import {
 	EmbedWikilink,
 	Environment,
 	Hyperlink,
+	Table,
 } from "./wikilinks";
 import {
 	split_inline,
@@ -421,6 +422,12 @@ export function parse_display(
 		new_display,
 		EmbedWikilink.build_from_match,
 		EmbedWikilink.get_regexp(),
+		settings
+	); //must come before explicit environment
+	new_display = split_display<Table>(
+		new_display,
+		Table.build_from_match,
+		Table.get_regexp(),
 		settings
 	); //must come before explicit environment
 	return [parsed_yaml[0], new_display];

@@ -237,34 +237,56 @@ export class Table implements node {
 	caption: string | undefined;
 	file_of_origin: TFile;
 
-	constructor(markdownTable: string, current_file: TFile, caption?: string) {
-		this.file_of_origin = current_file;
-		this.caption = caption;
-		this.parseMarkdownTable(markdownTable);
+	static get_regexp(): RegExp {
+		// Matches markdown tables with headers, separator, and data rows
+		return /(?:(\S*?)::\s*\n?\s*)?\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)/gm;
 	}
 
-	private parseMarkdownTable(markdownTable: string) {
-		const lines = markdownTable.trim().split("\n");
+	static build_from_match(
+		match: RegExpMatchArray,
+		settings: ExportPluginSettings
+		// current_file: TFile
+	): Table {
+		const label = match[1]; // Optional label before ::
+		const headerLine = match[2]; // Header row content
+		const dataRows = match[3]; // All data rows
 
-		// Parse headers (first line)
-		this.headers = lines[0]
-			.split("|")
-			.map((cell) => cell.trim())
-			.filter((cell) => cell !== ""); // Remove empty cells from start/end
+		return new Table(headerLine, dataRows, label);
+	}
 
-		// Skip separator line (second line with |---|---|)
-		// Parse data rows (from third line onwards)
+	constructor(headerLine: string, dataRowsText: string, caption?: string) {
+		// this.file_of_origin = current_file;
+		this.caption = caption;
+		this.parseTableParts(headerLine, dataRowsText);
+	}
+
+	private parseTableParts(headerLine: string, dataRowsText: string) {
+		// Parse headers from the header line
+		this.headers = this.parseTableRow(headerLine);
+
+		// Parse data rows from the data rows text
 		this.rows = [];
-		for (let i = 2; i < lines.length; i++) {
-			const row = lines[i]
-				.split("|")
-				.map((cell) => cell.trim())
-				.filter((cell) => cell !== ""); // Remove empty cells from start/end
+		const lines = dataRowsText.trim().split("\n");
 
-			if (row.length > 0) {
-				this.rows.push(row);
+		for (const line of lines) {
+			if (line.includes("|")) {
+				const row = this.parseTableRow(line);
+				if (row.length > 0) {
+					this.rows.push(row);
+				}
 			}
 		}
+	}
+
+	private parseTableRow(line: string): string[] {
+		// Split by |, trim whitespace, remove empty first/last elements
+		const cells = line.split("|").map((cell) => cell.trim());
+
+		// Remove empty cells from start and end (outer | characters)
+		if (cells[0] === "") cells.shift();
+		if (cells[cells.length - 1] === "") cells.pop();
+
+		return cells;
 	}
 
 	async unroll(data: metadata_for_unroll): Promise<node[]> {
@@ -293,18 +315,14 @@ export class Table implements node {
 	) {
 		// Begin table environment
 		buffer_offset += buffer.write(
-			`\\begin{table}[h]
-\\centering
-`,
+			`\\begin{table}[h]\n\\centering\n`,
 			buffer_offset
 		);
 
 		// Create column specification based on number of columns
 		const columnSpec = "c".repeat(this.headers.length);
 		buffer_offset += buffer.write(
-			`\\begin{tabular}{${columnSpec}}
-\\hline
-`,
+			`\\begin{tabular}{${columnSpec}}\n\\hline\n`,
 			buffer_offset
 		);
 
@@ -323,9 +341,7 @@ export class Table implements node {
 
 		// End tabular environment
 		buffer_offset += buffer.write(
-			`\\hline
-\\end{tabular}
-`,
+			`\\hline\n\\end{tabular}\n`,
 			buffer_offset
 		);
 
@@ -336,8 +352,7 @@ export class Table implements node {
 			const warning =
 				"WARNING: Table has no caption.\n" +
 				"You may want to add one when creating the table.\n" +
-				"In note:\n" +
-				this.file_of_origin.path;
+				"In note:\n";
 			notice_and_warn(warning);
 		} else {
 			caption_text = this.escapeLatex(this.caption);
