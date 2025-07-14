@@ -1,12 +1,13 @@
 import { TFile, Notice } from "obsidian";
 
 export function notice_and_warn(message: string) {
-	message = "Warning:\n"+ message
+	message = "Warning:\n" + message;
 	new Notice(message);
 	console.warn(message);
 }
 export function escape_latex(input: string) {
-	return input
+	// Step 1: Apply normal escaping to everything
+	let result = input
 		.replace(/\\/g, "\\textbackslash")
 		.replace(/\{/g, "\\{")
 		.replace(/\}/g, "\\}")
@@ -89,15 +90,41 @@ export function escape_latex(input: string) {
 		.replace(/°/g, "$^{\\circ}$")
 		.replace(/‰/g, "\\perthousand{}")
 		.replace(/‽/g, "\\textinterrobang{}")
-		.replace(/“/g, "``")
-		.replace(/”/g, "''")
-		.replace(/‘/g, "`")
-		.replace(/’/g, "'")
+		.replace(/"/g, "``")
+		.replace(/"/g, "''")
+		.replace(/'/g, "`")
+		.replace(/'/g, "'");
+
+	// Step 2: Un-escape allowed LaTeX commands
+	result = result
+		.replace(/\\textbackslashpagebreak/g, "\\pagebreak")
+		.replace(/\\textbackslashnewpage/g, "\\newpage")
+		.replace(/\\textbackslashclearpage/g, "\\clearpage")
+		.replace(/\\textbackslashtextbf/g, "\\textbf")
+		.replace(/\\textbackslashtextit/g, "\\textit")
+		.replace(/\\textbackslashemph/g, "\\emph")
+		.replace(/\\textbackslashunderline/g, "\\underline")
+		.replace(/\\textbackslashtexttt/g, "\\texttt")
+		.replace(/\\textbackslashtextsf/g, "\\textsf")
+		.replace(/\\textbackslashtextsc/g, "\\textsc")
+		.replace(/\\textbackslashfootnote/g, "\\footnote")
+		.replace(/\\textbackslashcite/g, "\\cite")
+		.replace(/\\textbackslashref/g, "\\ref")
+		.replace(/\\textbackslashlabel/g, "\\label")
+		.replace(/\\textbackslash\\textbackslash/g, "\\\\")
+		.replace(/\\textbackslash,/g, "\\,")
+		.replace(/\\textbackslash;/g, "\\;")
+		.replace(/\\textbackslash:/g, "\\:")
+		.replace(/\\textbackslash!/g, "\\!")
+		.replace(/\\textbackslashldots/g, "\\ldots")
+		.replace(/\\textbackslashcdots/g, "\\cdots");
+
+	return result;
 }
 
 export function find_image_file(
 	find_file: (address: string) => TFile | undefined,
-	address: string,
+	address: string
 ): TFile | undefined {
 	const matchExcalidraw = /^.*\.excalidraw$/.exec(address);
 	if (matchExcalidraw !== null) {

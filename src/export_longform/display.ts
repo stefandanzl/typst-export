@@ -225,14 +225,16 @@ export class BlankLine implements node {
 		// the other \n should be done at the end of the previous display object.
 	}
 }
-
 export class DisplayCode implements node {
 	language: string | undefined;
 	executable: boolean;
 	code: string;
+	label: string;
+	caption: string | undefined;
+	file_of_origin: TFile;
 
 	static get_regexp(): RegExp {
-		return /```(?:({?)([a-zA-Z]*)(}?)\s*\n)?([\s\S]*?)```/g;
+		return /```(?:({?)([a-zA-Z]*)(}?)\s*\n)?([\s\S]*?)```\s*(?:\{!([^}]+)\})?\s*\{#([^}]+)\}/g;
 	}
 
 	static build_from_match(
@@ -242,17 +244,43 @@ export class DisplayCode implements node {
 		const code = match[4];
 		const executable = match[1] === "{" && match[3] === "}";
 		const language = match[2] && match[2] !== "" ? match[2] : undefined;
-		return new DisplayCode(code, language, executable);
+		const caption = match[5]; // Optional caption from {!text}
+		const codeId = match[6]; // Code ID from {#id}
+
+		return new DisplayCode(code, language, executable, caption, codeId);
 	}
 
-	constructor(code: string, language?: string, executable: boolean = false) {
+	constructor(
+		code: string,
+		language?: string,
+		executable: boolean = false,
+		caption?: string,
+		codeId?: string
+	) {
 		this.code = code;
 		this.language = language;
 		this.executable = executable;
+		this.caption = caption;
+		this.label = codeId || "";
 	}
 
-	async unroll(): Promise<node[]> {
+	async unroll(data: metadata_for_unroll): Promise<node[]> {
+		this.file_of_origin = data.current_file;
 		return [this];
+	}
+
+	private escapeLatex(text: string): string {
+		return text
+			.replace(/\\/g, "\\textbackslash{}")
+			.replace(/&/g, "\\&")
+			.replace(/%/g, "\\%")
+			.replace(/\$/g, "\\$")
+			.replace(/#/g, "\\#")
+			.replace(/\^/g, "\\textasciicircum{}")
+			.replace(/_/g, "\\_")
+			.replace(/~/g, "\\textasciitilde{}")
+			.replace(/\{/g, "\\{")
+			.replace(/\}/g, "\\}");
 	}
 
 	private mapLanguageToListings(language: string): string {
@@ -344,10 +372,26 @@ export class DisplayCode implements node {
 			const mappedLanguage = this.mapLanguageToListings(this.language);
 
 			buffer_offset += buffer.write(
-				`\\begin{lstlisting}[language=${mappedLanguage}, basicstyle=\\ttfamily\\small, numbers=left, numberstyle=\\tiny, stepnumber=1, numbersep=5pt, backgroundcolor=\\color{gray!10}, frame=single, breaklines=true, showstringspaces=false]\n`,
+				`\\begin{lstlisting}[language=${mappedLanguage}, basicstyle=\\ttfamily\\small, numbers=left, numberstyle=\\tiny, stepnumber=1, numbersep=5pt, backgroundcolor=\\color{gray!10}, frame=single, breaklines=true, showstringspaces=false`,
 				buffer_offset
 			);
 
+			// Add caption and label if available
+			if (this.caption) {
+				buffer_offset += buffer.write(
+					`, caption={${this.escapeLatex(
+						this.caption
+					)}}, label={lst:${this.label}}`,
+					buffer_offset
+				);
+			} else if (this.label) {
+				buffer_offset += buffer.write(
+					`, label={lst:${this.label}}`,
+					buffer_offset
+				);
+			}
+
+			buffer_offset += buffer.write("]\n", buffer_offset);
 			buffer_offset += buffer.write(this.code, buffer_offset);
 			buffer_offset += buffer.write(
 				"\n\\end{lstlisting}\n",
@@ -358,6 +402,16 @@ export class DisplayCode implements node {
 			buffer_offset += buffer.write("\\begin{verbatim}\n", buffer_offset);
 			buffer_offset += buffer.write(this.code, buffer_offset);
 			buffer_offset += buffer.write("\n\\end{verbatim}\n", buffer_offset);
+
+			// Add caption after verbatim if available
+			if (this.caption && this.label) {
+				buffer_offset += buffer.write(
+					`\\captionof{lstlisting}{${this.escapeLatex(
+						this.caption
+					)}}\\label{lst:${this.label}}\n`,
+					buffer_offset
+				);
+			}
 		}
 
 		return buffer_offset;
