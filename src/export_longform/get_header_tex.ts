@@ -3,7 +3,7 @@ export function get_header_tex() {
 \\usepackage{amsthm}
 \\usepackage{biblatex}
 \\usepackage{graphicx}
-\\usepackage{hyperref}
+
 \\usepackage{cleveref}
 
 \\theoremstyle{plain}
@@ -20,3 +20,5 @@ export function get_header_tex() {
 \\newtheorem{remark}{Remark}[section]
 \\newtheorem{fact}[remark]{Fact}`;
 }
+
+//\\usepackage{hyperref}

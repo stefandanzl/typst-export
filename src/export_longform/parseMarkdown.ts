@@ -138,6 +138,8 @@ export async function parse_longform(
 			// Store in result object under section name
 			sections[title] = rendered;
 		}
+
+		console.log("SECTIONS", sections);
 	}
 	return {
 		yaml: parsed_note.yaml,
@@ -200,6 +202,9 @@ export async function write_with_template(
 	modify_tfile: (file: TFile, content: string) => Promise<void>,
 	preamble_file?: TFile
 ) {
+	// console.log("PARSED", parsed_contents);
+	// console.log("TEMPLATE CONTENT", template_content);
+
 	for (const key of Object.keys(parsed_contents["yaml"])) {
 		template_content = template_content.replace(
 			RegExp(`\\\$${key}\\\$`, "i"),
@@ -207,19 +212,22 @@ export async function write_with_template(
 		);
 	}
 
-	for (const [sectionName, sectionContent] of Object.entries(
-		sectionTemplateNames
-	)) {
-		const placeholder = new RegExp(`\\$${sectionName}\\$`, "gi");
+	for (const section of Object.keys(parsed_contents["sections"])) {
+		// const placeholder = new RegExp(`\\$${sectionName}\\$`, "gi");
 		template_content = template_content.replace(
-			placeholder,
-			sectionContent
+			RegExp(`\\\$${section}\\\$`, "i"),
+			parsed_contents["sections"][section]
 		);
 	}
 
-	// Clean up unused placeholders
-	template_content = template_content.replace(/\$[a-z]+\$/gi, "");
-	template_content = template_content.replace(/\\[a-z]+\{\}/g, "");
+	// console.log("CONTENT1", template_content);
+	// // Clean up unused placeholders
+	// template_content = template_content.replace(/\$[a-z]+\$/gi, "");
+
+	// console.log("CONTENT2", template_content);
+	// template_content = template_content.replace(/\\[a-z]+\{\}/g, "");
+
+	// console.log("FINAL TEMPLATE CONTENT", template_content);
 
 	await modify_tfile(output_file, template_content);
 }

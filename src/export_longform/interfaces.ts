@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	template_path: "",
 	base_output_folder: "/",
 	documentStructureType: "article",
-	sectionTemplateNames: ["body", "abstract", "appendix"],
+	sectionTemplateNames: ["abstract", "appendix"],
 	preamble_file: "preamble.sty",
 	bib_file: "bibliography.bib",
 	prioritize_lists: false, // Whether to parse lists or equations first. Lists first allows lists containing display equations, but yields bugs because lines within an equation can easily start with '-'.

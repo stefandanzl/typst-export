@@ -18,11 +18,7 @@ import {
 	parse_yaml_header,
 } from "./parseMarkdown";
 import { Paragraph, BlankLine } from "./display";
-import {
-	strip_newlines,
-	notice_and_warn,
-	find_image_file,
-} from "./utils";
+import { strip_newlines, notice_and_warn, find_image_file } from "./utils";
 import { label_from_location, explicit_label, format_label } from "./labels";
 import { assert } from "console";
 
@@ -37,7 +33,7 @@ export class EmbedWikilink implements node {
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): EmbedWikilink {
 		return new EmbedWikilink(args[1], args[2], args[3], args[4]);
 	}
@@ -45,7 +41,7 @@ export class EmbedWikilink implements node {
 		attribute: string | undefined,
 		address: string,
 		header: string | undefined,
-		displayed: string | undefined,
+		displayed: string | undefined
 	) {
 		this.attribute = attribute;
 		this.content = address;
@@ -55,7 +51,7 @@ export class EmbedWikilink implements node {
 
 	async unroll(
 		data: metadata_for_unroll,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<node[]> {
 		if (address_is_image_file(this.content)) {
 			const file = find_image_file(data.find_file, this.content);
@@ -77,7 +73,7 @@ export class EmbedWikilink implements node {
 					data,
 					file.name,
 					data.current_file,
-					settings,
+					settings
 				);
 				// Resolve the label early. We can do this because label_from_location will not need to resolve headers.
 				return [p];
@@ -90,7 +86,7 @@ export class EmbedWikilink implements node {
 			data.parsed_file_bundle,
 			data.current_file,
 			settings,
-			this.header,
+			this.header
 		);
 		if (return_data === undefined) {
 			const err_msg =
@@ -157,11 +153,11 @@ export class EmbedWikilink implements node {
 						address,
 						data.current_file,
 						settings,
-						this.header,
+						this.header
 					),
 					address,
 					embedded_file_yaml,
-					this.display,
+					this.display
 				),
 			];
 		}
@@ -170,12 +166,12 @@ export class EmbedWikilink implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		console.error(
 			"Embed wikilink " +
 				this.content +
-				"should have been unrolled to something else",
+				"should have been unrolled to something else"
 		);
 		return 0;
 	}
@@ -198,7 +194,7 @@ export class Plot implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		buffer_offset += buffer.write(
 			`\\begin{figure}[h]
@@ -208,7 +204,7 @@ export class Plot implements node {
 				"/" +
 				this.image.name +
 				"}\n", // Cannot use path.join, because the path is a latex path.
-			buffer_offset,
+			buffer_offset
 		);
 		let caption_text: string;
 		if (this.caption === undefined) {
@@ -227,9 +223,134 @@ export class Plot implements node {
 		}
 		buffer_offset += buffer.write(
 			"\\caption{" + caption_text + "\\label{" + this.label + "}}\n",
-			buffer_offset,
+			buffer_offset
 		);
 		buffer_offset += buffer.write("\\end{figure}\n", buffer_offset);
+		return buffer_offset;
+	}
+}
+
+export class Table implements node {
+	rows: string[][];
+	headers: string[];
+	label: string;
+	caption: string | undefined;
+	file_of_origin: TFile;
+
+	constructor(markdownTable: string, current_file: TFile, caption?: string) {
+		this.file_of_origin = current_file;
+		this.caption = caption;
+		this.parseMarkdownTable(markdownTable);
+	}
+
+	private parseMarkdownTable(markdownTable: string) {
+		const lines = markdownTable.trim().split("\n");
+
+		// Parse headers (first line)
+		this.headers = lines[0]
+			.split("|")
+			.map((cell) => cell.trim())
+			.filter((cell) => cell !== ""); // Remove empty cells from start/end
+
+		// Skip separator line (second line with |---|---|)
+		// Parse data rows (from third line onwards)
+		this.rows = [];
+		for (let i = 2; i < lines.length; i++) {
+			const row = lines[i]
+				.split("|")
+				.map((cell) => cell.trim())
+				.filter((cell) => cell !== ""); // Remove empty cells from start/end
+
+			if (row.length > 0) {
+				this.rows.push(row);
+			}
+		}
+	}
+
+	async unroll(data: metadata_for_unroll): Promise<node[]> {
+		this.file_of_origin = data.current_file;
+		return [this];
+	}
+
+	private escapeLatex(text: string): string {
+		return text
+			.replace(/\\/g, "\\textbackslash{}")
+			.replace(/&/g, "\\&")
+			.replace(/%/g, "\\%")
+			.replace(/\$/g, "\\$")
+			.replace(/#/g, "\\#")
+			.replace(/\^/g, "\\textasciicircum{}")
+			.replace(/_/g, "\\_")
+			.replace(/~/g, "\\textasciitilde{}")
+			.replace(/\{/g, "\\{")
+			.replace(/\}/g, "\\}");
+	}
+
+	async latex(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	) {
+		// Begin table environment
+		buffer_offset += buffer.write(
+			`\\begin{table}[h]
+\\centering
+`,
+			buffer_offset
+		);
+
+		// Create column specification based on number of columns
+		const columnSpec = "c".repeat(this.headers.length);
+		buffer_offset += buffer.write(
+			`\\begin{tabular}{${columnSpec}}
+\\hline
+`,
+			buffer_offset
+		);
+
+		// Write headers
+		const escapedHeaders = this.headers.map((h) => this.escapeLatex(h));
+		const headerRow = escapedHeaders.join(" & ") + " \\\\\n";
+		buffer_offset += buffer.write(headerRow, buffer_offset);
+		buffer_offset += buffer.write("\\hline\n", buffer_offset);
+
+		// Write data rows
+		for (const row of this.rows) {
+			const escapedRow = row.map((cell) => this.escapeLatex(cell));
+			const dataRow = escapedRow.join(" & ") + " \\\\\n";
+			buffer_offset += buffer.write(dataRow, buffer_offset);
+		}
+
+		// End tabular environment
+		buffer_offset += buffer.write(
+			`\\hline
+\\end{tabular}
+`,
+			buffer_offset
+		);
+
+		// Handle caption
+		let caption_text: string;
+		if (this.caption === undefined) {
+			caption_text = "";
+			const warning =
+				"WARNING: Table has no caption.\n" +
+				"You may want to add one when creating the table.\n" +
+				"In note:\n" +
+				this.file_of_origin.path;
+			notice_and_warn(warning);
+		} else {
+			caption_text = this.escapeLatex(this.caption);
+		}
+
+		buffer_offset += buffer.write(
+			"\\caption{" + caption_text + "\\label{" + this.label + "}}\n",
+			buffer_offset
+		);
+
+		// End table environment
+		buffer_offset += buffer.write("\\end{table}\n", buffer_offset);
+
 		return buffer_offset;
 	}
 }
@@ -244,7 +365,7 @@ export class Wikilink implements node {
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Wikilink {
 		return new Wikilink(args[1], args[2], args[3], args[4]);
 	}
@@ -252,7 +373,7 @@ export class Wikilink implements node {
 		attribute: string | undefined,
 		address: string,
 		header: string | undefined,
-		displayed: string | undefined,
+		displayed: string | undefined
 	) {
 		this.attribute = attribute;
 		this.content = address;
@@ -261,7 +382,7 @@ export class Wikilink implements node {
 	}
 	async unroll(
 		data: metadata_for_unroll,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<node[]> {
 		if (this.content === "" && this.header !== undefined) {
 			this.content = data.current_file.basename;
@@ -272,14 +393,14 @@ export class Wikilink implements node {
 				this.attribute,
 				this.content,
 				this.header,
-				this.displayed,
+				this.displayed
 			),
 		];
 	}
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		if (this.header === undefined) {
 			this.header = "";
@@ -288,7 +409,7 @@ export class Wikilink implements node {
 			buffer_offset +
 			buffer.write(
 				"[[" + this.content + "#" + this.header + "]]",
-				buffer_offset,
+				buffer_offset
 			)
 		);
 	}
@@ -312,7 +433,7 @@ export class Environment implements node {
 		label?: string,
 		address_of_origin?: string,
 		embedded_file_yaml?: { [key: string]: string },
-		display_title?: string,
+		display_title?: string
 	) {
 		this.children = children;
 		this.type = type.toLowerCase().trim();
@@ -323,7 +444,7 @@ export class Environment implements node {
 	}
 	static build_from_match(
 		match: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Environment {
 		// TODO: Creates an infinite loop; this is a problem.
 		let [_, body] = parse_display(strip_newlines(match[3]), settings);
@@ -337,19 +458,19 @@ export class Environment implements node {
 			// parse_note(strip_newlines(match[3])).body,
 			body,
 			match[1],
-			match[2],
+			match[2]
 		);
 	}
 	async unroll(
 		data: metadata_for_unroll,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<node[]> {
 		// If it is unrolled, it is likely an explicit env.
 		if (this.label !== undefined) {
 			this.label = explicit_label(
 				data.longform_file,
 				data.current_file,
-				this.label,
+				this.label
 			);
 		}
 		this.address_of_origin = undefined; // Do not display the name of the note as title for this one.
@@ -359,7 +480,7 @@ export class Environment implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		let start_env_string = "\\begin{" + this.type + "}";
 		if (this.type === "proof" && this.label !== undefined) {
@@ -398,7 +519,7 @@ export class Environment implements node {
 		if (this.label !== undefined && this.type !== "proof") {
 			buffer_offset += buffer.write(
 				"\\label{" + format_label(this.label) + "}\n",
-				buffer_offset,
+				buffer_offset
 			);
 		} else {
 			buffer_offset += buffer.write("\n", buffer_offset);
@@ -408,7 +529,7 @@ export class Environment implements node {
 		}
 		buffer_offset += buffer.write(
 			"\\end{" + this.type + "}\n",
-			buffer_offset,
+			buffer_offset
 		);
 		return buffer_offset;
 	}
@@ -422,7 +543,7 @@ export class Hyperlink implements node {
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Hyperlink {
 		return new Hyperlink(args[1], args[2]);
 	}
@@ -436,13 +557,13 @@ export class Hyperlink implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		return (
 			buffer_offset +
 			buffer.write(
 				`\\href{${this.address}}{${this.label}}`,
-				buffer_offset,
+				buffer_offset
 			)
 		);
 	}
@@ -460,7 +581,7 @@ export class UnrolledWikilink implements node {
 		attribute: string | undefined,
 		address: string,
 		header: string | undefined,
-		displayed: string | undefined,
+		displayed: string | undefined
 	) {
 		assert(!/^@/.exec(address), "Should not be a citation");
 		this.unroll_data = {
@@ -488,7 +609,7 @@ export class UnrolledWikilink implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		const hasBeenEmbedded =
 			this.unroll_data.parsed_file_bundle[this.address] !== undefined;
@@ -499,13 +620,13 @@ export class UnrolledWikilink implements node {
 					this.address +
 					"' points to no file. Wikilink is in file: '" +
 					this.unroll_data.current_file.path +
-					"'",
+					"'"
 			);
 			return (
 				buffer_offset +
 				buffer.write(
 					"FAILED TO RESOLVE:[[" + this.address + "]]",
-					buffer_offset,
+					buffer_offset
 				)
 			);
 		}
@@ -517,7 +638,7 @@ export class UnrolledWikilink implements node {
 			const file_contents = await this.unroll_data.read_tfile(file);
 			const [yaml] = parse_yaml_header(file_contents);
 			const bib_key_match = yaml.source?.match(
-				/@([a-zA-Z0-9\-_]+)|\[\[@([a-zA-Z0-9\-_]+)\]\]/,
+				/@([a-zA-Z0-9\-_]+)|\[\[@([a-zA-Z0-9\-_]+)\]\]/
 			);
 			const bib_key = bib_key_match
 				? bib_key_match[1] || bib_key_match[2]
@@ -527,7 +648,7 @@ export class UnrolledWikilink implements node {
 				const citation = new Citation(
 					bib_key,
 					"std",
-					published_result_name || this.displayed,
+					published_result_name || this.displayed
 				);
 				return citation.latex(buffer, buffer_offset, settings);
 			} else {
@@ -536,13 +657,13 @@ export class UnrolledWikilink implements node {
 						this.address +
 						"' is referenced but was not embedded.\n" +
 						"In note:\n" +
-						this.unroll_data.current_file.path,
+						this.unroll_data.current_file.path
 				);
 				return (
 					buffer_offset +
 					buffer.write(
 						"FAILED TO RESOLVE:[[" + this.address + "]]",
-						buffer_offset,
+						buffer_offset
 					)
 				);
 			}
@@ -552,14 +673,14 @@ export class UnrolledWikilink implements node {
 			this.address,
 			this.unroll_data.current_file,
 			settings,
-			this.header,
+			this.header
 		);
 		if (this.displayed !== undefined) {
 			return (
 				buffer_offset +
 				buffer.write(
 					"\\hyperref[" + label + "]{" + this.displayed + "}",
-					buffer_offset,
+					buffer_offset
 				)
 			);
 		}
@@ -573,7 +694,7 @@ export class UnrolledWikilink implements node {
 				buffer_offset +
 				buffer.write(
 					"\\hyperlink{" + label + "}{the proof}",
-					buffer_offset,
+					buffer_offset
 				)
 			);
 		}
@@ -597,7 +718,7 @@ export class PandocCitation {
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): PandocCitation {
 		let bibkey = undefined;
 		let enclosed_in_brackets: boolean;
@@ -637,7 +758,7 @@ export class PandocCitation {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		throw Error("Latex on this PandocCitation should not be called.");
 	}
@@ -653,7 +774,7 @@ export class Citation implements node {
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Citation {
 		let captured_id = args[2];
 		if (captured_id == "") {
@@ -683,7 +804,7 @@ export class Citation implements node {
 			)
 		) {
 			notice_and_warn(
-				"Invalid citation type: " + type + ". Reverting to default.",
+				"Invalid citation type: " + type + ". Reverting to default."
 			);
 			this.type = undefined;
 		} else {
@@ -698,7 +819,7 @@ export class Citation implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		// TODO: change the use of textcite to an option in settings
 		let citestring = "\\";
@@ -753,7 +874,7 @@ export class MultiCitation implements node {
 		}
 		buffer_offset += buffer.write(
 			this.ids[this.ids.length - 1] + "}",
-			buffer_offset,
+			buffer_offset
 		);
 		return buffer_offset;
 	}
@@ -796,7 +917,7 @@ export class PandocMultiCitation implements node {
 		}
 		buffer_offset += buffer.write(
 			this.ids[this.ids.length - 1] + "}",
-			buffer_offset,
+			buffer_offset
 		);
 		return buffer_offset;
 	}
