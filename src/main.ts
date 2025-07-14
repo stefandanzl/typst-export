@@ -34,13 +34,14 @@ import {
 	parsed_longform,
 	notice_and_warn,
 } from "./export_longform";
+import { DEFAULT_LATEX_TEMPLATE } from "./export_longform/interfaces";
 
 export default class ExportPaperPlugin extends Plugin {
 	settings: ExportPluginSettings;
 	find_file = (address: string): TFile | undefined => {
 		const temp_result = this.app.metadataCache.getFirstLinkpathDest(
 			address,
-			"/",
+			"/"
 		);
 		if (temp_result) {
 			return temp_result;
@@ -53,19 +54,19 @@ export default class ExportPaperPlugin extends Plugin {
 	async export_to_external_folder(
 		active_file: TFile,
 		external_folder: string,
-		skip_overwrite_check: boolean = false,
+		skip_overwrite_check: boolean = false
 	) {
 		const parsed_contents = await parse_longform(
 			this.app.vault.cachedRead.bind(this.app.vault),
 			this.find_file,
 			active_file,
-			this.settings,
+			this.settings
 		);
 
 		const output_folder_name = active_file.basename.replace(/ /g, "_");
 		const output_folder_path = path.join(
 			external_folder,
-			output_folder_name,
+			output_folder_name
 		);
 		const output_file_name = `${active_file.basename}_output.tex`;
 		const output_path = path.join(output_folder_path, output_file_name);
@@ -83,9 +84,9 @@ export default class ExportPaperPlugin extends Plugin {
 					this.export_to_external_folder(
 						active_file,
 						external_folder,
-						true,
+						true
 					),
-				"It seems there is a previously exported file in the external folder. Overwrite it?",
+				"It seems there is a previously exported file in the external folder. Overwrite it?"
 			).open();
 			return;
 		}
@@ -105,17 +106,17 @@ export default class ExportPaperPlugin extends Plugin {
 			if (this.settings.overwrite_preamble && preamble_exists) {
 				fs.copyFileSync(
 					(this.app.vault.adapter as FileSystemAdapter).getFullPath(
-						preamble_file.path,
+						preamble_file.path
 					),
-					new_preamble_path,
+					new_preamble_path
 				);
 				export_message += "- Overwriting the preamble file\n";
 			} else if (!preamble_exists) {
 				fs.copyFileSync(
 					(this.app.vault.adapter as FileSystemAdapter).getFullPath(
-						preamble_file.path,
+						preamble_file.path
 					),
-					new_preamble_path,
+					new_preamble_path
 				);
 				export_message += "- Copying the preamble file\n";
 			} else {
@@ -145,9 +146,9 @@ export default class ExportPaperPlugin extends Plugin {
 			if (!bib_exists) {
 				fs.copyFileSync(
 					(this.app.vault.adapter as FileSystemAdapter).getFullPath(
-						bib_file.path,
+						bib_file.path
 					),
-					new_bib_path,
+					new_bib_path
 				);
 				export_message += "- Copying the bib file\n";
 			} else {
@@ -160,25 +161,26 @@ export default class ExportPaperPlugin extends Plugin {
 		const template_file =
 			this.app.vault.getFileByPath(this.settings.template_path) ??
 			undefined;
+
+		let template_content = DEFAULT_LATEX_TEMPLATE;
 		if (template_file) {
+			template_content = await this.app.vault.read(template_file);
 			export_message += "- Using the specified template file,\n";
-			await write_with_template(
-				template_file,
-				parsed_contents,
-				{ path: output_path } as TFile,
-				async (_file, content) =>
-					fs.writeFileSync(output_path, content),
-				this.app.vault.cachedRead.bind(this.app.vault),
-			);
-		} else {
-			await write_without_template(
-				parsed_contents,
-				{ path: output_path } as TFile,
-				async (_file, content) =>
-					fs.writeFileSync(output_path, content),
-				preamble_file,
-			);
 		}
+		await write_with_template(
+			template_content,
+			parsed_contents,
+			this.settings.sectionTemplateNames,
+			{ path: output_path } as TFile,
+			async (_file, content) => fs.writeFileSync(output_path, content),
+			preamble_file
+		);
+		// await write_without_template(
+		// 	parsed_contents,
+		// 	{ path: output_path } as TFile,
+		// 	async (_file, content) => fs.writeFileSync(output_path, content),
+		// 	preamble_file
+		// );
 
 		if (parsed_contents.media_files.length > 0) {
 			const files_folder = path.join(output_folder_path, "Files");
@@ -191,7 +193,7 @@ export default class ExportPaperPlugin extends Plugin {
 			for (const media_file of parsed_contents.media_files) {
 				const destination_path = path.join(
 					files_folder,
-					media_file.name,
+					media_file.name
 				);
 				const file_exists = fs.existsSync(destination_path);
 
@@ -200,7 +202,7 @@ export default class ExportPaperPlugin extends Plugin {
 						(
 							this.app.vault.adapter as FileSystemAdapter
 						).getFullPath(media_file.path),
-						destination_path,
+						destination_path
 					);
 					export_message += `- Overwriting figure file: ${media_file.name}\n`;
 				} else if (!file_exists) {
@@ -208,7 +210,7 @@ export default class ExportPaperPlugin extends Plugin {
 						(
 							this.app.vault.adapter as FileSystemAdapter
 						).getFullPath(media_file.path),
-						destination_path,
+						destination_path
 					);
 					if (!copying_message_added) {
 						export_message += "- Copying figure files\n";
@@ -225,12 +227,12 @@ export default class ExportPaperPlugin extends Plugin {
 		await this.saveSettings();
 
 		new Notice(
-			`${export_message}To external folder: ${output_folder_path}`,
+			`${export_message}To external folder: ${output_folder_path}`
 		);
 	}
 	async find_files_and_export(
 		active_file: TFile,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		if (this.settings.base_output_folder === "") {
 			this.settings.base_output_folder = "/";
@@ -240,7 +242,7 @@ export default class ExportPaperPlugin extends Plugin {
 			notes_dir.cachedRead.bind(notes_dir),
 			this.find_file,
 			active_file,
-			settings,
+			settings
 		);
 
 		let base_folder;
@@ -248,23 +250,23 @@ export default class ExportPaperPlugin extends Plugin {
 			// console.log(parsed_contents.yaml["export_dir"] === "Shared/Exact_regularisation/exports")
 			base_folder = this.app.vault.getFolderByPath(
 				// parsed_contents.yaml["export_dir"],
-				parsed_contents.yaml["export_dir"],
+				parsed_contents.yaml["export_dir"]
 			);
 		} else {
 			base_folder = this.app.vault.getFolderByPath(
-				this.settings.base_output_folder,
+				this.settings.base_output_folder
 			);
 		}
 		if (!base_folder) {
 			notice_and_warn(
-				"Output folder path not found, defaulting to the root of the vault.",
+				"Output folder path not found, defaulting to the root of the vault."
 			);
 			base_folder = this.app.vault.getRoot();
 		}
 		const output_file_name = active_file.basename + "_output.tex";
 		let output_folder_path = path.join(
 			base_folder.path,
-			active_file.basename.replace(/ /g, "_"),
+			active_file.basename.replace(/ /g, "_")
 		);
 		const output_folder_match = /^\/(.*)$/.exec(output_folder_path);
 		if (output_folder_match) {
@@ -274,7 +276,7 @@ export default class ExportPaperPlugin extends Plugin {
 		await this.app.vault.createFolder(output_folder_path).catch((e) => e);
 		// await this.create_folder_if_not(output_folder_path);
 		const the_preamble_file = this.app.vault.getFileByPath(
-			this.settings.preamble_file,
+			this.settings.preamble_file
 		);
 		let export_message = "SUCCESS!!\nExporting the current file:\n";
 		const preamble_file = the_preamble_file ? the_preamble_file : undefined;
@@ -309,7 +311,7 @@ export default class ExportPaperPlugin extends Plugin {
 			export_message += "- Without overwriting the header file\n";
 		}
 		const the_bib_file = this.app.vault.getFileByPath(
-			this.settings.bib_file,
+			this.settings.bib_file
 		);
 		const bib_file = the_bib_file ? the_bib_file : undefined;
 		if (bib_file !== undefined) {
@@ -325,7 +327,7 @@ export default class ExportPaperPlugin extends Plugin {
 			export_message += "- Without a bib file (none found)\n";
 		}
 		const the_template_file = this.app.vault.getFileByPath(
-			this.settings.template_path,
+			this.settings.template_path
 		);
 		const template_file =
 			the_template_file !== null ? the_template_file : undefined;
@@ -344,7 +346,7 @@ export default class ExportPaperPlugin extends Plugin {
 				template_file,
 				out_file,
 				preamble_file,
-				export_message,
+				export_message
 			);
 		} else {
 			const out_file_other = out_file;
@@ -361,9 +363,9 @@ export default class ExportPaperPlugin extends Plugin {
 							template_file,
 							out_file_other,
 							preamble_file,
-							export_message,
+							export_message
 						),
-					"It seems there is a previously exported file. Overwrite it?",
+					"It seems there is a previously exported file. Overwrite it?"
 				).open();
 			} else {
 				await this.proceed_with_export(
@@ -374,7 +376,7 @@ export default class ExportPaperPlugin extends Plugin {
 					template_file,
 					out_file,
 					preamble_file,
-					export_message,
+					export_message
 				);
 			}
 		}
@@ -388,7 +390,7 @@ export default class ExportPaperPlugin extends Plugin {
 		template_file: TFile | undefined,
 		out_file: TFile,
 		preamble_file: TFile | undefined,
-		partial_message: string = "",
+		partial_message: string = ""
 	) {
 		const notes_dir = this.app.vault;
 
@@ -402,7 +404,7 @@ export default class ExportPaperPlugin extends Plugin {
 			for (const media_file of parsed_contents.media_files) {
 				const destination_path = path.join(
 					files_folder,
-					media_file.name,
+					media_file.name
 				);
 				const existing_file =
 					this.app.vault.getFileByPath(destination_path);
@@ -428,34 +430,48 @@ export default class ExportPaperPlugin extends Plugin {
 			}
 		}
 
+		let template_content = DEFAULT_LATEX_TEMPLATE;
+		if (template_file) {
+			template_content = await this.app.vault.read(template_file);
+		}
+		await write_with_template(
+			template_content,
+			parsed_contents,
+			this.settings.sectionTemplateNames,
+			out_file,
+			notes_dir.modify.bind(notes_dir),
+			preamble_file
+		);
+		/**
 		if (template_file !== undefined) {
 			await write_with_template(
 				template_file,
 				parsed_contents,
+				this.settings.sectionTemplateNames,
 				out_file,
 				notes_dir.modify.bind(notes_dir),
-				notes_dir.cachedRead.bind(notes_dir),
+				notes_dir.cachedRead.bind(notes_dir)
 			);
 		} else {
 			await write_without_template(
 				parsed_contents,
 				out_file,
 				notes_dir.modify.bind(notes_dir),
-				preamble_file,
+				preamble_file
 			);
-		}
+		}*/
 		new Notice(
 			partial_message +
 				"To the vault folder inside the vault:\n" +
 				output_folder_path +
-				"/",
+				"/"
 		);
 	}
 
 	async export_with_selection(
 		active_file: TFile,
 		selection: string,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		try {
 			return export_selection(
@@ -463,7 +479,7 @@ export default class ExportPaperPlugin extends Plugin {
 				this.find_file,
 				active_file,
 				selection,
-				settings,
+				settings
 			);
 		} catch (e) {
 			console.error(e);
@@ -517,7 +533,7 @@ export default class ExportPaperPlugin extends Plugin {
 							const selectedPath = result.filePaths[0];
 							this.export_to_external_folder(
 								active_file,
-								selectedPath,
+								selectedPath
 							);
 						})
 						.catch((err: Error) => {
@@ -534,7 +550,7 @@ export default class ExportPaperPlugin extends Plugin {
 			editorCheckCallback: (
 				checking: boolean,
 				editor: Editor,
-				ctx: MarkdownView | MarkdownFileInfo,
+				ctx: MarkdownView | MarkdownFileInfo
 			): boolean | void => {
 				if (checking) {
 					return editor.somethingSelected();
@@ -547,7 +563,7 @@ export default class ExportPaperPlugin extends Plugin {
 				this.export_with_selection(
 					active_file,
 					selection,
-					this.settings,
+					this.settings
 				);
 			},
 		});
@@ -560,7 +576,7 @@ export default class ExportPaperPlugin extends Plugin {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			await this.loadData(),
+			await this.loadData()
 		);
 	}
 
@@ -579,7 +595,7 @@ class WarningModal extends Modal {
 		app: App,
 		plugin: ExportPaperPlugin,
 		callback: any,
-		message: string,
+		message: string
 	) {
 		super(app);
 		this.plugin = plugin;
@@ -601,12 +617,12 @@ class WarningModal extends Modal {
 					await this.callback();
 					await this.plugin.saveSettings();
 					this.close();
-				}),
+				})
 			)
 			.addButton((btn) =>
 				btn.setButtonText("Cancel").onClick(() => {
 					this.close();
-				}),
+				})
 			);
 
 		const toggleContainer = contentEl.createDiv();
@@ -614,7 +630,7 @@ class WarningModal extends Modal {
 		new Setting(toggleContainer).addToggle((toggle) =>
 			toggle
 				.setValue(false)
-				.onChange((value) => (this.rememberChoice = value)),
+				.onChange((value) => (this.rememberChoice = value))
 		);
 	}
 
@@ -638,7 +654,7 @@ class LatexExportSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Template file")
 			.setDesc(
-				"Relative vault path to a template file. Only set this if you would like to export with a template (you don't need to.)",
+				"Relative vault path to a template file. Only set this if you would like to export with a template (you don't need to.)"
 			)
 			.addText((text) =>
 				text
@@ -651,12 +667,12 @@ class LatexExportSettingTab extends PluginSettingTab {
 						this.plugin.settings.template_path =
 							normalizePath(value);
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Output folder")
 			.setDesc(
-				"Vault relative path of an existing folder in your vault. Exports will be written within that folder.",
+				"Vault relative path of an existing folder in your vault. Exports will be written within that folder."
 			)
 			.addText((text) =>
 				text
@@ -674,12 +690,12 @@ class LatexExportSettingTab extends PluginSettingTab {
 						this.plugin.settings.base_output_folder =
 							normalizePath(value);
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Math preamble file")
 			.setDesc(
-				"Vault relative path to a preamble.sty file in your vault. It will be included in the export.",
+				"Vault relative path to a preamble.sty file in your vault. It will be included in the export."
 			)
 			.addText((text) =>
 				text
@@ -689,7 +705,7 @@ class LatexExportSettingTab extends PluginSettingTab {
 						this.plugin.settings.preamble_file =
 							normalizePath(value);
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl).setName("Bib file").addText((text) =>
 			text
@@ -698,12 +714,12 @@ class LatexExportSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.bib_file = normalizePath(value);
 					await this.plugin.saveSettings();
-				}),
+				})
 		);
 		new Setting(containerEl)
 			.setName("Prioritize lists over equations")
 			.setDesc(
-				"Whether to include display equations in lists, or stop the list and have the equation outside of the list.",
+				"Whether to include display equations in lists, or stop the list and have the equation outside of the list."
 			)
 			.addToggle((cb) =>
 				cb
@@ -711,12 +727,12 @@ class LatexExportSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.prioritize_lists = value;
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Overwrite preamble.sty")
 			.setDesc(
-				"Overwrite the preamble file also if a preamble file is found in the root of the vault.",
+				"Overwrite the preamble file also if a preamble file is found in the root of the vault."
 			)
 			.addToggle((cb) =>
 				cb
@@ -724,12 +740,12 @@ class LatexExportSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.overwrite_preamble = value;
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Overwrite figure files")
 			.setDesc(
-				"Overwrite figure files in the Files folder during export.",
+				"Overwrite figure files in the Files folder during export."
 			)
 			.addToggle((cb) =>
 				cb
@@ -737,7 +753,7 @@ class LatexExportSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.overwrite_figures = value;
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Overwrite header file")
@@ -748,7 +764,7 @@ class LatexExportSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.overwrite_header = value;
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Warn before overwriting on export")
@@ -758,7 +774,7 @@ class LatexExportSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.warn_before_overwrite = value;
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Default cite command")
@@ -768,12 +784,12 @@ class LatexExportSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.default_citation_command = value;
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Display environment names")
 			.setDesc(
-				"Set display attribute of the wikilink as the visible name of the environment in latex. If no display value is found, the value of the yaml entry 'env_title' will be used. If that is not found, use the file name if 'Default environment title to file names' is set. Setting any such field to an empty string specifies the absence of a title.",
+				"Set display attribute of the wikilink as the visible name of the environment in latex. If no display value is found, the value of the yaml entry 'env_title' will be used. If that is not found, use the file name if 'Default environment title to file names' is set. Setting any such field to an empty string specifies the absence of a title."
 			)
 			.addToggle((cb) =>
 				cb
@@ -781,40 +797,40 @@ class LatexExportSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.display_env_titles = value;
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Default environment title to file name")
 			.setDesc(
-				"Use file names (without the file extension) as a default environment name.",
+				"Use file names (without the file extension) as a default environment name."
 			)
 			.addToggle((cb) =>
 				cb
 					.setValue(
-						this.plugin.settings.default_env_name_to_file_name,
+						this.plugin.settings.default_env_name_to_file_name
 					)
 					.onChange(async (value) => {
 						this.plugin.settings.default_env_name_to_file_name =
 							value;
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 		new Setting(containerEl)
 			.setName("Last external folder")
 			.setDesc(
-				"The last used external folder for exports. Updated automatically when exporting externally.",
+				"The last used external folder for exports. Updated automatically when exporting externally."
 			)
 			.addText((text) =>
 				text
 					.setPlaceholder(
-						"Last used external folder (e.g., /home/user/latex)",
+						"Last used external folder (e.g., /home/user/latex)"
 					)
 					.setValue(this.plugin.settings.last_external_folder)
 					.onChange(async (value) => {
 						this.plugin.settings.last_external_folder =
 							normalizePath(value);
 						await this.plugin.saveSettings();
-					}),
+					})
 			);
 	}
 }

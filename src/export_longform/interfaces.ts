@@ -4,12 +4,12 @@ import { Header } from "./headers";
 export interface node {
 	unroll(
 		data: metadata_for_unroll,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<node[]>;
 	latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number>;
 }
 
@@ -17,6 +17,8 @@ export interface ExportPluginSettings {
 	mySetting: string;
 	template_path: string;
 	base_output_folder: string;
+	documentStructureType: "article" | "book";
+	sectionTemplateNames: string[];
 	preamble_file: string;
 	bib_file: string;
 	prioritize_lists: boolean;
@@ -34,6 +36,8 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	mySetting: "default",
 	template_path: "",
 	base_output_folder: "/",
+	documentStructureType: "article",
+	sectionTemplateNames: ["body", "abstract", "appendix"],
 	preamble_file: "preamble.sty",
 	bib_file: "bibliography.bib",
 	prioritize_lists: false, // Whether to parse lists or equations first. Lists first allows lists containing display equations, but yields bugs because lines within an equation can easily start with '-'.
@@ -46,6 +50,38 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	overwrite_figures: false,
 	overwrite_header: false,
 };
+
+export const HEADING_STRUCTURE = {
+	article: { 1: "section", 2: "subsection", 3: "subsubsection" },
+	book: { 1: "chapter", 2: "section", 3: "subsection", 4: "subsubsection" },
+} as const;
+
+export type HEADING_STRUCTURE = typeof HEADING_STRUCTURE;
+
+export const DEFAULT_LATEX_TEMPLATE = `
+\\documentclass{article}
+\\input{header}
+{{PREAMBLE}}
+
+\\addbibresource{bibliography.bib}
+\\title{$title$}
+\\author{$author$}
+
+\\begin{document}
+\\maketitle
+
+$abstract$
+
+$body$
+
+$customSections$
+
+\\printbibliography
+
+$appendix$
+
+\\end{document}
+`;
 
 export type parsed_note = {
 	yaml: { [key: string]: string };
@@ -74,7 +110,7 @@ export type metadata_for_unroll = {
 export function init_data(
 	longform_file: TFile,
 	read_tfile: (file: TFile) => Promise<string>,
-	find_file: (address: string) => TFile | undefined,
+	find_file: (address: string) => TFile | undefined
 ): metadata_for_unroll {
 	return {
 		in_thm_env: false,
@@ -106,7 +142,7 @@ export function address_is_image_file(address: string) {
 export async function unroll_array(
 	data: metadata_for_unroll,
 	content_array: node[],
-	settings: ExportPluginSettings,
+	settings: ExportPluginSettings
 ) {
 	const new_children: node[] = [];
 	for (const elt of content_array) {

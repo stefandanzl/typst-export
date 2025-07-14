@@ -25,7 +25,7 @@ export async function read_tfile(file: TFile): Promise<string> {
 export async function get_parsed_file_contents(
 	address: string,
 	notes_dir = "./tests/files/",
-	settings: ExportPluginSettings = DEFAULT_SETTINGS,
+	settings: ExportPluginSettings = DEFAULT_SETTINGS
 ) {
 	const find_file = get_find_file_fn(notes_dir);
 	const longform_file = find_file(address);
@@ -39,7 +39,7 @@ export async function get_parsed_file_contents(
 export async function get_unrolled_file_contents(
 	address: string,
 	notes_dir = "./tests/files/",
-	settings: ExportPluginSettings = DEFAULT_SETTINGS,
+	settings: ExportPluginSettings = DEFAULT_SETTINGS
 ) {
 	const find_file = get_find_file_fn(notes_dir);
 	const longform_file = find_file(address);
@@ -55,7 +55,7 @@ export async function get_unrolled_file_contents(
 export async function get_latex_file_contents(
 	address: string,
 	settings: ExportPluginSettings,
-	notes_dir = "./tests/files/",
+	notes_dir = "./tests/files/"
 ) {
 	const find_file = get_find_file_fn(notes_dir);
 	const longform_file = find_file(address);
@@ -66,9 +66,9 @@ export async function get_latex_file_contents(
 		read_tfile,
 		find_file,
 		longform_file,
-		settings,
+		settings
 	);
-	return parsed_content.body;
+	return parsed_content.sections.body;
 }
 
 export function get_find_file_fn(notes_dir: string) {
@@ -98,7 +98,7 @@ function find_file(notes_dir: string, address: string): TFile | undefined {
 		) {
 			if (file_path !== undefined) {
 				console.warn(
-					"Multiple files found with the same name. Returning the first one found.",
+					"Multiple files found with the same name. Returning the first one found."
 				);
 			}
 			file_path = curr_file_path;
