@@ -238,8 +238,8 @@ export class Table implements node {
 	file_of_origin: TFile;
 
 	static get_regexp(): RegExp {
-		// Matches markdown tables with headers, separator, and data rows
-		return /(?:(\S*?)::\s*\n?\s*)?\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)/gm;
+		// Matches markdown tables with optional caption in {!text}{#id} format
+		return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)\s*(?:\{!([^}]+)\})?\s*\{#([^}]+)\}/gm;
 	}
 
 	static build_from_match(
@@ -247,16 +247,23 @@ export class Table implements node {
 		settings: ExportPluginSettings
 		// current_file: TFile
 	): Table {
-		const label = match[1]; // Optional label before ::
-		const headerLine = match[2]; // Header row content
-		const dataRows = match[3]; // All data rows
+		const headerLine = match[1]; // Header row content
+		const dataRows = match[2]; // All data rows
+		const caption = match[3]; // Optional caption from {!text}
+		const tableId = match[4]; // Table ID from {#id}
 
-		return new Table(headerLine, dataRows, label);
+		return new Table(headerLine, dataRows, caption, tableId);
 	}
 
-	constructor(headerLine: string, dataRowsText: string, caption?: string) {
+	constructor(
+		headerLine: string,
+		dataRowsText: string,
+		caption?: string,
+		tableId?: string
+	) {
 		// this.file_of_origin = current_file;
 		this.caption = caption;
+		this.label = tableId || "";
 		this.parseTableParts(headerLine, dataRowsText);
 	}
 
@@ -359,7 +366,7 @@ export class Table implements node {
 		}
 
 		buffer_offset += buffer.write(
-			"\\caption{" + caption_text + "\\label{" + this.label + "}}\n",
+			"\\caption{" + caption_text + "\\label{tbl:" + this.label + "}}\n",
 			buffer_offset
 		);
 
