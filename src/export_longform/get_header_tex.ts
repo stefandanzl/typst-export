@@ -6,6 +6,17 @@ export function get_header_tex() {
 
 \\usepackage{cleveref}
 
+\\usepackage{listings}
+\\usepackage{xcolor}
+\\lstset{
+    basicstyle=\\ttfamily,
+    breaklines=true,
+    showstringspaces=false,
+    commentstyle=\\color{gray},
+    keywordstyle=\\color{blue},
+    stringstyle=\\color{red}
+}
+
 \\theoremstyle{plain}
 \\newtheorem{theorem}{Theorem}[section]
 \\newtheorem{corollary}{Corollary}[section]
@@ -18,7 +29,8 @@ export function get_header_tex() {
 
 \\theoremstyle{remark}
 \\newtheorem{remark}{Remark}[section]
-\\newtheorem{fact}[remark]{Fact}`;
+\\newtheorem{fact}[remark]{Fact}
+`;
 }
 
-//\\usepackage{hyperref}
+// \\usepackage{hyperref}

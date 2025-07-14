@@ -14,18 +14,18 @@ export function split_display<T extends node>(
 	display_elts: node[],
 	make_obj: (args: RegExpMatchArray, settings: ExportPluginSettings) => T,
 	class_regexp: RegExp,
-	settings: ExportPluginSettings,
+	settings: ExportPluginSettings
 ): node[] {
 	const new_display = [] as node[];
 	for (const elt of display_elts) {
 		if (elt instanceof Paragraph) {
 			console.assert(
 				elt.elements.length == 1,
-				"Paragraph should have only one element at this stage of parsing",
+				"Paragraph should have only one element at this stage of parsing"
 			);
 			console.assert(
 				elt.elements[0] instanceof Text,
-				"Paragraph should have only one text element at this stage of parsing",
+				"Paragraph should have only one text element at this stage of parsing"
 			);
 			const inline_element = elt.elements[0] as Text;
 			let current_match: RegExpMatchArray | null = null;
@@ -39,11 +39,11 @@ export function split_display<T extends node>(
 				}
 				const prev_chunk = inline_element.content.slice(
 					start_index,
-					current_match.index,
+					current_match.index
 				);
 				if (prev_chunk.trim() !== "") {
 					new_display.push(
-						new Paragraph([new Text(strip_newlines(prev_chunk))]),
+						new Paragraph([new Text(strip_newlines(prev_chunk))])
 					);
 				}
 				new_display.push(make_obj(current_match, settings));
@@ -51,7 +51,7 @@ export function split_display<T extends node>(
 			}
 			// Last part of the text, or all of it if no match
 			const return_string = strip_newlines(
-				inline_element.content.slice(start_index),
+				inline_element.content.slice(start_index)
 			);
 			if (return_string.trim() !== "") {
 				new_display.push(new Paragraph([new Text(return_string)]));
@@ -74,7 +74,7 @@ export class DisplayMath implements node {
 	}
 	static build_from_match(
 		match: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): DisplayMath {
 		const latex = match[2] === undefined ? match[3] : match[2];
 		const label_match = /eq-(\w+)/.exec(match[1]);
@@ -96,7 +96,7 @@ export class DisplayMath implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		let env_name = "equation*";
 		if (this.label !== undefined) {
@@ -108,7 +108,7 @@ export class DisplayMath implements node {
 				notice_and_warn(
 					`Environment ${this.explicit_env_name} does not support labels.\n Ignoring label ${this.label}
 In note:
-` + this.file_of_origin.path,
+` + this.file_of_origin.path
 				);
 			}
 			if (
@@ -165,12 +165,12 @@ In note:
 		}
 		buffer_offset += buffer.write(
 			"\\begin{" + env_name + "}\n",
-			buffer_offset,
+			buffer_offset
 		);
 		buffer_offset += buffer.write(this.content + "\n", buffer_offset);
 		buffer_offset += buffer.write(
 			"\\end{" + env_name + "}\n",
-			buffer_offset,
+			buffer_offset
 		);
 		return buffer_offset;
 	}
@@ -183,7 +183,7 @@ export class Paragraph implements node {
 	}
 	async unroll(
 		data: metadata_for_unroll,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<node[]> {
 		const new_elements: node[] = [];
 		for (const elt of this.elements) {
@@ -195,7 +195,7 @@ export class Paragraph implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		let new_offset = buffer_offset;
 		for (const elt of this.elements) {
@@ -219,7 +219,7 @@ export class BlankLine implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		return buffer_offset + buffer.write("\n", buffer_offset);
 		// the other \n should be done at the end of the previous display object.
@@ -230,46 +230,136 @@ export class DisplayCode implements node {
 	language: string | undefined;
 	executable: boolean;
 	code: string;
+
 	static get_regexp(): RegExp {
-		return /```(?:\s*({?)([a-zA-Z]+)(}?)\s*\n([\s\S]*?)|([\s\S]*?))```/g;
+		return /```(?:({?)([a-zA-Z]*)(}?)\s*\n)?([\s\S]*?)```/g;
 	}
+
 	static build_from_match(
 		match: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): DisplayCode {
-		if (match[4] !== undefined) {
-			const code = match[4];
-			const executable = match[1] == "{" && match[3] == "}";
-			const language = match[2] !== "" ? match[2] : undefined;
-			return new DisplayCode(code, language, executable);
-		} else {
-			const code = match[5];
-			return new DisplayCode(code);
-		}
+		const code = match[4];
+		const executable = match[1] === "{" && match[3] === "}";
+		const language = match[2] && match[2] !== "" ? match[2] : undefined;
+		return new DisplayCode(code, language, executable);
 	}
+
 	constructor(code: string, language?: string, executable: boolean = false) {
 		this.code = code;
 		this.language = language;
 		this.executable = executable;
 	}
+
 	async unroll(): Promise<node[]> {
 		return [this];
 	}
+
+	private mapLanguageToListings(language: string): string {
+		// Map to actual languages supported by listings package
+		const languageMap: { [key: string]: string } = {
+			js: "Java", // Best match for JavaScript
+			javascript: "Java",
+			ts: "Java",
+			typescript: "Java",
+			py: "Python",
+			python: "Python",
+			java: "Java",
+			c: "C",
+			cpp: "C++",
+			"c++": "C++",
+			csharp: "C", // listings has [Sharp]C but it's unstable
+			cs: "C",
+			php: "PHP",
+			ruby: "Ruby",
+			go: "Go", // listings does have Go!
+			rust: "C", // No Rust, use C
+			swift: "Swift", // listings has Swift!
+			kotlin: "Java",
+			scala: "Scala",
+			r: "R",
+			matlab: "Matlab",
+			sql: "SQL",
+			html: "HTML",
+			xml: "HTML", // No XML, use HTML
+			bash: "bash",
+			sh: "bash",
+			makefile: "make",
+			tex: "TeX",
+			latex: "TeX",
+			haskell: "Haskell",
+			perl: "Perl",
+			lua: "Lua",
+			fortran: "Fortran",
+			pascal: "Pascal",
+		};
+
+		return languageMap[language.toLowerCase()] || "C"; // Default to C if unknown
+	}
+
+	private isLanguageSupported(language: string): boolean {
+		// Languages that listings package actually supports
+		const supportedLanguages = [
+			"js",
+			"javascript",
+			"ts",
+			"typescript", // mapped to Java
+			"python",
+			"py",
+			"java",
+			"c",
+			"cpp",
+			"c++",
+			"csharp",
+			"cs",
+			"php",
+			"ruby",
+			"go",
+			"rust",
+			"swift",
+			"kotlin",
+			"scala",
+			"r",
+			"matlab",
+			"sql",
+			"html",
+			"xml",
+			"bash",
+			"sh",
+			"makefile",
+			"tex",
+			"latex",
+		];
+
+		return supportedLanguages.includes(language.toLowerCase());
+	}
+
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
-		// notice_and_warn("Code to latex not implemented");
-		buffer_offset += buffer.write("\\begin{verbatim}", buffer_offset);
-		// if (this.label !== undefined) {
-		// 	buffer_offset += buffer.write(
-		// 		"\\label{" + format_label(this.label) + "}\n",
-		// 		buffer_offset,
-		// 	);
-		// }
-		buffer_offset += buffer.write(this.code, buffer_offset);
-		buffer_offset += buffer.write("\\end{verbatim}\n", buffer_offset);
+		if (this.language && this.isLanguageSupported(this.language)) {
+			// Use listings package for syntax highlighting
+			const mappedLanguage = this.mapLanguageToListings(this.language);
+
+			buffer_offset += buffer.write(
+				`\\begin{lstlisting}[language=${mappedLanguage}, basicstyle=\\ttfamily\\small, numbers=left, numberstyle=\\tiny, stepnumber=1, numbersep=5pt, backgroundcolor=\\color{gray!10}, frame=single, breaklines=true, showstringspaces=false]\n`,
+				buffer_offset
+			);
+
+			buffer_offset += buffer.write(this.code, buffer_offset);
+			buffer_offset += buffer.write(
+				"\n\\end{lstlisting}\n",
+				buffer_offset
+			);
+		} else {
+			// Fallback to verbatim (no syntax highlighting)
+			buffer_offset += buffer.write("\\begin{verbatim}\n", buffer_offset);
+			buffer_offset += buffer.write(this.code, buffer_offset);
+			buffer_offset += buffer.write("\n\\end{verbatim}\n", buffer_offset);
+		}
+
 		return buffer_offset;
 	}
 }
@@ -285,7 +375,7 @@ export class Quote implements node {
 	}
 	static build_from_match(
 		regexmatch: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Quote {
 		return new Quote(regexmatch[1]);
 	}
@@ -295,7 +385,7 @@ export class Quote implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		return (
 			buffer_offset +
@@ -315,7 +405,7 @@ export class NumberedList implements node {
 	}
 	static build_from_match(
 		regexmatch: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): NumberedList {
 		const list_contents: string[] = [];
 		for (const e of regexmatch.slice(1)) {
@@ -325,12 +415,12 @@ export class NumberedList implements node {
 			list_contents.push(e);
 		}
 		return new NumberedList(
-			list_contents.map((e) => [new Paragraph([new Text(e)])]),
+			list_contents.map((e) => [new Paragraph([new Text(e)])])
 		);
 	}
 	async unroll(
 		data: metadata_for_unroll,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<node[]> {
 		const new_content: node[][] = [];
 		for (const e of this.content) {
@@ -341,7 +431,7 @@ export class NumberedList implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		buffer_offset += buffer.write("\\begin{enumerate}\n", buffer_offset);
 		for (const e of this.content) {
@@ -366,7 +456,7 @@ export class UnorderedList implements node {
 	}
 	static build_from_match(
 		regexmatch: RegExpMatchArray,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): UnorderedList {
 		const list_contents: string[] = [];
 		for (const e of regexmatch.slice(1)) {
@@ -376,12 +466,12 @@ export class UnorderedList implements node {
 			list_contents.push(e);
 		}
 		return new UnorderedList(
-			list_contents.map((e) => [new Paragraph([new Text(e)])]),
+			list_contents.map((e) => [new Paragraph([new Text(e)])])
 		);
 	}
 	async unroll(
 		data: metadata_for_unroll,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<node[]> {
 		const new_content: node[][] = [];
 		for (const e of this.content) {
@@ -392,7 +482,7 @@ export class UnorderedList implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		buffer_offset += buffer.write("\\begin{itemize}\n", buffer_offset);
 		for (const e of this.content) {
@@ -416,7 +506,7 @@ export class Comment implements node {
 	}
 	static build_from_match(
 		regexmatch: RegExpMatchArray,
-		settings?: ExportPluginSettings,
+		settings?: ExportPluginSettings
 	): Quote {
 		return new Comment(regexmatch[1]);
 	}
@@ -426,7 +516,7 @@ export class Comment implements node {
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	) {
 		return buffer_offset;
 	}
