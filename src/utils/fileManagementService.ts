@@ -260,10 +260,15 @@ export class FileManagementService {
 				templateFolderPath,
 				outputFolderPath
 			);
-			messageBuilder.addCustomMessage("- Copying template folder contents");
+			messageBuilder.addCustomMessage("- Copying template folder contents (with overwrite)");
 		} catch (error) {
 			console.warn("Failed to copy template folder:", error);
-			messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
+			// Provide more specific error information
+			if (error instanceof Error && error.message.includes('EEXIST')) {
+				messageBuilder.addCustomMessage("- Template folder: some files couldn't be overwritten (check permissions)");
+			} else {
+				messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
+			}
 		}
 	}
 
@@ -285,10 +290,15 @@ export class FileManagementService {
 				templateFolderPath,
 				outputFolderPath
 			);
-			messageBuilder.addCustomMessage("- Copying template folder contents");
+			messageBuilder.addCustomMessage("- Copying template folder contents (with overwrite)");
 		} catch (error) {
 			console.warn("Failed to copy template folder:", error);
-			messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
+			// Provide more specific error information  
+			if (error instanceof Error && error.message.includes('EEXIST')) {
+				messageBuilder.addCustomMessage("- Template folder: some files couldn't be overwritten (check permissions)");
+			} else {
+				messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
+			}
 		}
 	}
 }

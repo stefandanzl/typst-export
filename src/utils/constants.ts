@@ -4,7 +4,7 @@
 
 // File names and paths
 export const EXPORT_FILE_NAMES = {
-	OUTPUT_SUFFIX: "_output.tex",
+	OUTPUT_FILENAME: "mainmd.tex",
 	PREAMBLE: "preamble.sty",
 	HEADER: "header.tex",
 	BIBLIOGRAPHY: "bibliography.bib",

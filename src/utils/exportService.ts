@@ -56,25 +56,25 @@ export class ExportService {
 			// Build export message
 			const messageBuilder = new ExportMessageBuilder(EXPORT_MESSAGES.SUCCESS_EXTERNAL_BASE);
 
-			// Handle supporting files
-			await this.handleSupportingFilesExternal(parsedContents, exportPaths, settings, messageBuilder);
-
-			// Handle template folder if specified
+			// 1. Handle template folder first (foundation)
 			await this.fileManager.handleTemplateFolderExternal(
 				settings.template_folder,
 				exportPaths.outputFolderPath,
 				messageBuilder
 			);
 
-			// Write the main output file
-			await this.writeMainOutputFileExternal(parsedContents, exportPaths, settings);
-
-			// Handle media files
+			// 2. Handle media files
 			await this.fileManager.handleMediaFilesExternal(
 				parsedContents.media_files,
 				exportPaths.attachmentsPath,
 				messageBuilder
 			);
+
+			// 3. Handle supporting files (can override template defaults)
+			await this.handleSupportingFilesExternal(parsedContents, exportPaths, settings, messageBuilder);
+
+			// 4. Write the main output file (mainmd.tex) last
+			await this.writeMainOutputFileExternal(parsedContents, exportPaths, settings);
 
 			// Update settings with last external folder
 			settings.last_external_folder = outputPath;
@@ -123,17 +123,24 @@ export class ExportService {
 			// Build export message
 			const messageBuilder = new ExportMessageBuilder(EXPORT_MESSAGES.SUCCESS_BASE);
 
-			// Handle supporting files
-			await this.handleSupportingFilesVault(parsedContents, exportPaths, settings, messageBuilder);
-
-			// Handle template folder if specified
+			// 1. Handle template folder first (foundation)
 			await this.fileManager.handleTemplateFolderVault(
 				settings.template_folder,
 				exportPaths.outputFolderPath,
 				messageBuilder
 			);
 
-			// Check if output file exists and handle accordingly
+			// 2. Handle media files
+			await this.fileManager.handleMediaFilesVault(
+				parsedContents.media_files,
+				exportPaths.attachmentsPath,
+				messageBuilder
+			);
+
+			// 3. Handle supporting files (can override template defaults)
+			await this.handleSupportingFilesVault(parsedContents, exportPaths, settings, messageBuilder);
+
+			// 4. Check if output file exists and handle accordingly
 			let outputFile = this.app.vault.getFileByPath(exportPaths.outputFilePath);
 			if (!outputFile) {
 				outputFile = await this.app.vault.create(exportPaths.outputFilePath, "");
@@ -143,15 +150,8 @@ export class ExportService {
 				outputFile = await this.app.vault.create(exportPaths.outputFilePath, "");
 			}
 
-			// Write the main output file
+			// 5. Write the main output file (mainmd.tex) last
 			await this.writeMainOutputFileVault(parsedContents, outputFile, settings);
-
-			// Handle media files
-			await this.fileManager.handleMediaFilesVault(
-			parsedContents.media_files,
-			exportPaths.attachmentsPath,
-			messageBuilder
-			);
 
 			const finalMessage = messageBuilder.build(exportPaths.outputFolderPath, false);
 			new Notice(finalMessage);
@@ -345,8 +345,8 @@ export class ExportService {
 		
 		return {
 			outputFolderPath,
-			outputFileName: `${activeFile.basename}${EXPORT_FILE_NAMES.OUTPUT_SUFFIX}`,
-			outputFilePath: `${outputFolderPath}/${activeFile.basename}${EXPORT_FILE_NAMES.OUTPUT_SUFFIX}`,
+			outputFileName: EXPORT_FILE_NAMES.OUTPUT_FILENAME,
+			outputFilePath: `${outputFolderPath}/${EXPORT_FILE_NAMES.OUTPUT_FILENAME}`,
 			headerPath: `${outputFolderPath}/${EXPORT_FILE_NAMES.HEADER}`,
 			preamblePath: `${outputFolderPath}/${EXPORT_FILE_NAMES.PREAMBLE}`,
 			bibPath: `${outputFolderPath}/${EXPORT_FILE_NAMES.BIBLIOGRAPHY}`,

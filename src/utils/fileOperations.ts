@@ -1,6 +1,7 @@
 import * as path from "path";
 import * as fs from "fs";
 import { TFile, FileSystemAdapter } from "obsidian";
+import { EXPORT_FILE_NAMES } from "./constants";
 
 /**
  * Utility class for common file operations used in export functionality
@@ -54,17 +55,17 @@ export class FileOperations {
 	static createExportPaths(baseFolderPath: string, activeFile: TFile) {
 		const outputFolderName = this.generateSafeFilename(activeFile.basename);
 		const outputFolderPath = path.join(baseFolderPath, outputFolderName);
-		const outputFileName = `${activeFile.basename}_output.tex`;
+		const outputFileName = EXPORT_FILE_NAMES.OUTPUT_FILENAME;
 		const outputFilePath = path.join(outputFolderPath, outputFileName);
 
 		return {
 			outputFolderPath,
 			outputFileName,
 			outputFilePath,
-			headerPath: path.join(outputFolderPath, "header.tex"),
-			preamblePath: path.join(outputFolderPath, "preamble.sty"),
-			bibPath: path.join(outputFolderPath, "bibliography.bib"),
-			attachmentsPath: path.join(outputFolderPath, "Attachments")
+			headerPath: path.join(outputFolderPath, EXPORT_FILE_NAMES.HEADER),
+			preamblePath: path.join(outputFolderPath, EXPORT_FILE_NAMES.PREAMBLE),
+			bibPath: path.join(outputFolderPath, EXPORT_FILE_NAMES.BIBLIOGRAPHY),
+			attachmentsPath: path.join(outputFolderPath, EXPORT_FILE_NAMES.ATTACHMENTS_FOLDER)
 		};
 	}
 
@@ -104,6 +105,10 @@ export class FileOperations {
 				this.ensureDirectoryExists(destItemPath);
 				this.copyDirectoryRecursive(sourceItemPath, destItemPath);
 			} else if (item.isFile()) {
+				// Always overwrite: remove existing file first if it exists
+				if (fs.existsSync(destItemPath)) {
+					fs.unlinkSync(destItemPath);
+				}
 				fs.copyFileSync(sourceItemPath, destItemPath);
 			}
 		}
