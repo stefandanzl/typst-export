@@ -135,53 +135,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-		new Setting(containerEl)
-			.setName("Overwrite preamble.sty")
-			.setDesc(
-				"Overwrite the preamble file also if a preamble file is found in the root of the vault."
-			)
-			.addToggle((cb) =>
-				cb
-					.setValue(this.plugin.settings.overwrite_preamble)
-					.onChange(async (value) => {
-						this.plugin.settings.overwrite_preamble = value;
-						await this.plugin.saveSettings();
-					})
-			);
-		new Setting(containerEl)
-			.setName("Overwrite figure files")
-			.setDesc(
-				"Overwrite figure files in the Attachments folder during export."
-			)
-			.addToggle((cb) =>
-				cb
-					.setValue(this.plugin.settings.overwrite_figures)
-					.onChange(async (value) => {
-						this.plugin.settings.overwrite_figures = value;
-						await this.plugin.saveSettings();
-					})
-			);
-		new Setting(containerEl)
-			.setName("Overwrite header file")
-			.setDesc("Overwrite the header file (header.tex) during export.")
-			.addToggle((cb) =>
-				cb
-					.setValue(this.plugin.settings.overwrite_header)
-					.onChange(async (value) => {
-						this.plugin.settings.overwrite_header = value;
-						await this.plugin.saveSettings();
-					})
-			);
-		new Setting(containerEl)
-			.setName("Warn before overwriting on export")
-			.addToggle((cb) =>
-				cb
-					.setValue(this.plugin.settings.warn_before_overwrite)
-					.onChange(async (value) => {
-						this.plugin.settings.warn_before_overwrite = value;
-						await this.plugin.saveSettings();
-					})
-			);
+		// Note: All files are now automatically overwritten during export for a simpler user experience
 		new Setting(containerEl)
 			.setName("Default cite command")
 			.addText((txt) =>

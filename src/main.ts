@@ -10,10 +10,8 @@ import {
 import { LatexExportSettingTab } from "./export_longform/settings";
 import { 
 	ExportService,
-	WarningModal,
 	EXPORT_MESSAGES,
 	DIALOG_CONFIG,
-	UI_MESSAGES,
 	ExportConfig,
 	ExternalExportDialogResult
 } from "./utils";
@@ -136,27 +134,9 @@ export default class ExportPaperPlugin extends Plugin {
 			const result = await this.exportService.exportToVault(config);
 
 			if (!result.success) {
-				if (result.outputPath && result.message.includes("overwrite check needed")) {
-					// Show overwrite confirmation modal
-					const modal = WarningModal.createVaultOverwriteModal(
-						this.app,
-						async () => {
-							const retryConfig: ExportConfig = { ...config, skipOverwriteCheck: true };
-							await this.exportService.exportToVault(retryConfig);
-							
-							// Check if user wanted to remember choice
-							if (modal.getRememberChoice()) {
-								this.settings.warn_before_overwrite = false;
-								await this.saveSettings();
-							}
-						}
-					);
-					modal.open();
-				} else {
-					new Notice(result.message);
-					if (result.error) {
-						console.error("Vault export error:", result.error);
-					}
+				new Notice(result.message);
+				if (result.error) {
+					console.error("Vault export error:", result.error);
 				}
 			}
 		} catch (error) {
@@ -186,25 +166,9 @@ export default class ExportPaperPlugin extends Plugin {
 			const result = await this.exportService.exportToExternalFolder(config);
 
 			if (!result.success) {
-				if (result.outputPath && result.message.includes("overwrite check needed")) {
-					// Show overwrite confirmation modal
-					const modal = WarningModal.createExternalOverwriteModal(
-						this.app,
-						async () => {
-							const retryConfig: ExportConfig = { ...config, skipOverwriteCheck: true };
-							await this.exportService.exportToExternalFolder(retryConfig);
-							
-							// Update last external folder
-							this.settings.last_external_folder = dialogResult.selectedPath!;
-							await this.saveSettings();
-						}
-					);
-					modal.open();
-				} else {
-					new Notice(result.message);
-					if (result.error) {
-						console.error("External export error:", result.error);
-					}
+				new Notice(result.message);
+				if (result.error) {
+					console.error("External export error:", result.error);
 				}
 			} else {
 				// Update last external folder on success

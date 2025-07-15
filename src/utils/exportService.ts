@@ -30,7 +30,7 @@ export class ExportService {
 	 */
 	async exportToExternalFolder(config: ExportConfig): Promise<ExportResult> {
 		try {
-			const { activeFile, settings, outputPath, skipOverwriteCheck } = config;
+			const { activeFile, settings, outputPath } = config;
 			
 			if (!outputPath) {
 				return {
@@ -41,16 +41,6 @@ export class ExportService {
 			}
 
 			const exportPaths = FileOperations.createExportPaths(outputPath, activeFile);
-			
-			// Check for overwrite if needed
-			if (!skipOverwriteCheck && settings.warn_before_overwrite && 
-				FileOperations.fileExists(exportPaths.outputFilePath)) {
-				return {
-					success: false,
-					message: "File exists and overwrite check needed",
-					outputPath: exportPaths.outputFilePath
-				};
-			}
 
 			// Parse the content
 			const parsedContents = await parse_longform(
@@ -73,12 +63,11 @@ export class ExportService {
 			await this.writeMainOutputFileExternal(parsedContents, exportPaths, settings);
 
 			// Handle media files
-			await this.fileManager.handleMediaFilesExternal(
-				parsedContents.media_files,
-				exportPaths.attachmentsPath,
-				settings.overwrite_figures,
-				messageBuilder
-			);
+		await this.fileManager.handleMediaFilesExternal(
+			parsedContents.media_files,
+			exportPaths.attachmentsPath,
+			messageBuilder
+		);
 
 			// Update settings with last external folder
 			settings.last_external_folder = outputPath;
@@ -134,12 +123,10 @@ export class ExportService {
 			let outputFile = this.app.vault.getFileByPath(exportPaths.outputFilePath);
 			if (!outputFile) {
 				outputFile = await this.app.vault.create(exportPaths.outputFilePath, "");
-			} else if (settings.warn_before_overwrite) {
-				return {
-					success: false,
-					message: "File exists and overwrite check needed",
-					outputPath: exportPaths.outputFilePath
-				};
+			} else {
+				// Always overwrite for simpler user experience
+				await this.app.vault.delete(outputFile);
+				outputFile = await this.app.vault.create(exportPaths.outputFilePath, "");
 			}
 
 			// Write the main output file
@@ -147,10 +134,9 @@ export class ExportService {
 
 			// Handle media files
 			await this.fileManager.handleMediaFilesVault(
-				parsedContents.media_files,
-				exportPaths.attachmentsPath,
-				settings.overwrite_figures,
-				messageBuilder
+			parsedContents.media_files,
+			exportPaths.attachmentsPath,
+			messageBuilder
 			);
 
 			const finalMessage = messageBuilder.build(exportPaths.outputFolderPath, false);
@@ -223,14 +209,12 @@ export class ExportService {
 		await this.fileManager.handlePreambleFileExternal(
 			preambleFile || undefined,
 			exportPaths.preamblePath,
-			settings.overwrite_preamble,
 			messageBuilder
 		);
 
 		// Handle header file
 		await this.fileManager.handleHeaderFileExternal(
 			exportPaths.headerPath,
-			settings.overwrite_header,
 			messageBuilder
 		);
 
@@ -257,14 +241,12 @@ export class ExportService {
 		await this.fileManager.handlePreambleFileVault(
 			preambleFile || undefined,
 			exportPaths.preamblePath,
-			settings.overwrite_preamble,
 			messageBuilder
 		);
 
 		// Handle header file
 		await this.fileManager.handleHeaderFileVault(
 			exportPaths.headerPath,
-			settings.overwrite_header,
 			messageBuilder
 		);
 

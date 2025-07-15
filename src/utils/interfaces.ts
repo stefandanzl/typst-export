@@ -8,7 +8,6 @@ export interface ExportConfig {
 	readonly activeFile: TFile;
 	readonly settings: ExportPluginSettings;
 	readonly outputPath?: string;
-	readonly skipOverwriteCheck?: boolean;
 }
 
 /**

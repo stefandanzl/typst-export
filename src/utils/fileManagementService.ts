@@ -27,7 +27,6 @@ export class FileManagementService {
 	async handlePreambleFileExternal(
 		preambleFile: TFile | undefined,
 		preamblePath: string,
-		overwritePreamble: boolean,
 		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
 		if (!preambleFile) {
@@ -37,15 +36,9 @@ export class FileManagementService {
 
 		const preambleExists = FileOperations.fileExists(preamblePath);
 		
-		if (overwritePreamble && preambleExists) {
-			FileOperations.copyFileToExternal(this.vaultAdapter, preambleFile, preamblePath);
-			messageBuilder.addPreambleMessage('overwriting');
-		} else if (!preambleExists) {
-			FileOperations.copyFileToExternal(this.vaultAdapter, preambleFile, preamblePath);
-			messageBuilder.addPreambleMessage('copying');
-		} else {
-			messageBuilder.addPreambleMessage('none');
-		}
+		// Always overwrite for simpler user experience
+		FileOperations.copyFileToExternal(this.vaultAdapter, preambleFile, preamblePath);
+		messageBuilder.addPreambleMessage(preambleExists ? 'overwriting' : 'copying');
 	}
 
 	/**
@@ -54,7 +47,6 @@ export class FileManagementService {
 	async handlePreambleFileVault(
 		preambleFile: TFile | undefined,
 		preamblePath: string,
-		overwritePreamble: boolean,
 		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
 		if (!preambleFile) {
@@ -64,16 +56,14 @@ export class FileManagementService {
 
 		const existingPreamble = this.vault.getFileByPath(preamblePath);
 		
-		if (overwritePreamble && existingPreamble) {
+		// Always overwrite for simpler user experience
+		if (existingPreamble) {
 			await this.vault.delete(existingPreamble);
-			await this.vault.copy(preambleFile, preamblePath);
 			messageBuilder.addPreambleMessage('overwriting');
-		} else if (!existingPreamble) {
-			await this.vault.copy(preambleFile, preamblePath);
-			messageBuilder.addPreambleMessage('copying');
 		} else {
-			messageBuilder.addPreambleMessage('none');
+			messageBuilder.addPreambleMessage('copying');
 		}
+		await this.vault.copy(preambleFile, preamblePath);
 	}
 
 	/**
@@ -81,20 +71,13 @@ export class FileManagementService {
 	 */
 	async handleHeaderFileExternal(
 		headerPath: string,
-		overwriteHeader: boolean,
 		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
 		const headerExists = FileOperations.fileExists(headerPath);
 		
-		if (overwriteHeader && headerExists) {
-			FileOperations.writeFile(headerPath, get_header_tex());
-			messageBuilder.addHeaderMessage('overwriting');
-		} else if (!headerExists) {
-			FileOperations.writeFile(headerPath, get_header_tex());
-			messageBuilder.addHeaderMessage('creating');
-		} else {
-			messageBuilder.addHeaderMessage('none');
-		}
+		// Always overwrite for simpler user experience
+		FileOperations.writeFile(headerPath, get_header_tex());
+		messageBuilder.addHeaderMessage(headerExists ? 'overwriting' : 'creating');
 	}
 
 	/**
@@ -102,22 +85,18 @@ export class FileManagementService {
 	 */
 	async handleHeaderFileVault(
 		headerPath: string,
-		overwriteHeader: boolean,
 		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
 		const headerFile = this.vault.getFileByPath(headerPath);
 		
-		if (overwriteHeader || !headerFile) {
-			if (headerFile) {
-				await this.vault.delete(headerFile);
-				messageBuilder.addHeaderMessage('overwriting');
-			} else {
-				messageBuilder.addHeaderMessage('creating');
-			}
-			await this.vault.create(headerPath, get_header_tex());
+		// Always overwrite for simpler user experience
+		if (headerFile) {
+			await this.vault.delete(headerFile);
+			messageBuilder.addHeaderMessage('overwriting');
 		} else {
-			messageBuilder.addHeaderMessage('none');
+			messageBuilder.addHeaderMessage('creating');
 		}
+		await this.vault.create(headerPath, get_header_tex());
 	}
 
 	/**
@@ -172,7 +151,6 @@ export class FileManagementService {
 	async handleMediaFilesExternal(
 		mediaFiles: TFile[],
 		attachmentsPath: string,
-		overwriteFigures: boolean,
 		messageBuilder: ExportMessageBuilder
 	): Promise<MediaFileProcessingResult> {
 		if (mediaFiles.length === 0) {
@@ -183,40 +161,37 @@ export class FileManagementService {
 		
 		let copiedFiles = 0;
 		let overwrittenFiles = 0;
-		let skippedFiles = 0;
 		const errors: Error[] = [];
-		let copyingMessageAdded = false;
-		let skippingMessageAdded = false;
+		let messageAdded = false;
 
 		for (const mediaFile of mediaFiles) {
 			try {
 				const destinationPath = path.join(attachmentsPath, mediaFile.name);
 				const fileExists = FileOperations.fileExists(destinationPath);
 
-				if (overwriteFigures && fileExists) {
-					FileOperations.copyFileToExternal(this.vaultAdapter, mediaFile, destinationPath);
-					messageBuilder.addFiguresMessage('overwriting', mediaFile.name);
+				// Always overwrite for simpler user experience
+				FileOperations.copyFileToExternal(this.vaultAdapter, mediaFile, destinationPath);
+				
+				if (fileExists) {
 					overwrittenFiles++;
-				} else if (!fileExists) {
-					FileOperations.copyFileToExternal(this.vaultAdapter, mediaFile, destinationPath);
-					if (!copyingMessageAdded) {
-						messageBuilder.addFiguresMessage('copying');
-						copyingMessageAdded = true;
-					}
-					copiedFiles++;
 				} else {
-					if (!skippingMessageAdded) {
-						messageBuilder.addFiguresMessage('none');
-						skippingMessageAdded = true;
-					}
-					skippedFiles++;
+					copiedFiles++;
 				}
 			} catch (error) {
 				errors.push(error instanceof Error ? error : new Error(String(error)));
 			}
 		}
 
-		return { copiedFiles, overwrittenFiles, skippedFiles, errors };
+		// Add a single message about figure files
+		if (overwrittenFiles > 0 && copiedFiles > 0) {
+			messageBuilder.addFiguresMessage('copying'); // Mixed case, just say copying
+		} else if (overwrittenFiles > 0) {
+			messageBuilder.addFiguresMessage('overwriting');
+		} else if (copiedFiles > 0) {
+			messageBuilder.addFiguresMessage('copying');
+		}
+
+		return { copiedFiles, overwrittenFiles, skippedFiles: 0, errors };
 	}
 
 	/**
@@ -225,7 +200,6 @@ export class FileManagementService {
 	async handleMediaFilesVault(
 		mediaFiles: TFile[],
 		attachmentsPath: string,
-		overwriteFigures: boolean,
 		messageBuilder: ExportMessageBuilder
 	): Promise<MediaFileProcessingResult> {
 		if (mediaFiles.length === 0) {
@@ -236,40 +210,35 @@ export class FileManagementService {
 		
 		let copiedFiles = 0;
 		let overwrittenFiles = 0;
-		let skippedFiles = 0;
 		const errors: Error[] = [];
-		let copyingMessageAdded = false;
-		let skippingMessageAdded = false;
 
 		for (const mediaFile of mediaFiles) {
 			try {
 				const destinationPath = path.join(attachmentsPath, mediaFile.name);
 				const existingFile = this.vault.getFileByPath(destinationPath);
 
-				if (overwriteFigures && existingFile) {
+				// Always overwrite for simpler user experience
+				if (existingFile) {
 					await this.vault.delete(existingFile);
-					await this.vault.copy(mediaFile, destinationPath);
-					messageBuilder.addFiguresMessage('overwriting', mediaFile.name);
 					overwrittenFiles++;
-				} else if (!existingFile) {
-					await this.vault.copy(mediaFile, destinationPath);
-					if (!copyingMessageAdded) {
-						messageBuilder.addFiguresMessage('copying');
-						copyingMessageAdded = true;
-					}
-					copiedFiles++;
 				} else {
-					if (!skippingMessageAdded) {
-						messageBuilder.addFiguresMessage('none');
-						skippingMessageAdded = true;
-					}
-					skippedFiles++;
+					copiedFiles++;
 				}
+				await this.vault.copy(mediaFile, destinationPath);
 			} catch (error) {
 				errors.push(error instanceof Error ? error : new Error(String(error)));
 			}
 		}
 
-		return { copiedFiles, overwrittenFiles, skippedFiles, errors };
+		// Add a single message about figure files
+		if (overwrittenFiles > 0 && copiedFiles > 0) {
+			messageBuilder.addFiguresMessage('copying'); // Mixed case, just say copying
+		} else if (overwrittenFiles > 0) {
+			messageBuilder.addFiguresMessage('overwriting');
+		} else if (copiedFiles > 0) {
+			messageBuilder.addFiguresMessage('copying');
+		}
+
+		return { copiedFiles, overwrittenFiles, skippedFiles: 0, errors };
 	}
 }
