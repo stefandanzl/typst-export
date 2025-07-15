@@ -184,7 +184,7 @@ export default class ExportPaperPlugin extends Plugin {
 		// );
 
 		if (parsed_contents.media_files.length > 0) {
-			const files_folder = path.join(output_folder_path, "Files");
+			const files_folder = path.join(output_folder_path, "Attachments");
 			if (!fs.existsSync(files_folder)) {
 				fs.mkdirSync(files_folder);
 			}
@@ -396,7 +396,7 @@ export default class ExportPaperPlugin extends Plugin {
 		const notes_dir = this.app.vault;
 
 		if (parsed_contents.media_files.length > 0) {
-			const files_folder = path.join(output_folder_path, "Files");
+			const files_folder = path.join(output_folder_path, "Attachments");
 			await this.app.vault.createFolder(files_folder).catch((e) => e);
 			// await this.create_folder_if_not(files_folder);
 			let copying_message_added = false;

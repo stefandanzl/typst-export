@@ -151,7 +151,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Overwrite figure files")
 			.setDesc(
-				"Overwrite figure files in the Files folder during export."
+				"Overwrite figure files in the Attachments folder during export."
 			)
 			.addToggle((cb) =>
 				cb
