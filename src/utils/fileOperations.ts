@@ -70,7 +70,7 @@ export class FileOperations {
 
 	/**
 	 * Copies a directory from Obsidian vault to external filesystem recursively
-	 * The source directory will be created inside the destination directory
+	 * Copies the contents of the source directory to the destination directory
 	 */
 	static copyDirectoryToExternal(
 		vaultAdapter: FileSystemAdapter,
@@ -83,15 +83,11 @@ export class FileOperations {
 			return; // Source doesn't exist, nothing to copy
 		}
 
-		// Get the folder name from the source path
-		const folderName = path.basename(sourceDir);
-		const targetPath = path.join(destinationDir, folderName);
+		// Ensure destination directory exists
+		this.ensureDirectoryExists(destinationDir);
 
-		// Ensure target directory exists
-		this.ensureDirectoryExists(targetPath);
-
-		// Copy the directory recursively
-		this.copyDirectoryRecursive(sourcePath, targetPath);
+		// Copy the directory contents recursively
+		this.copyDirectoryRecursive(sourcePath, destinationDir);
 	}
 
 	/**
@@ -115,7 +111,7 @@ export class FileOperations {
 
 	/**
 	 * Copies a directory within the vault recursively
-	 * The source directory will be created inside the destination directory
+	 * Copies the contents of the source directory to the destination directory
 	 */
 	static async copyDirectoryWithinVault(
 		vault: any,
@@ -128,15 +124,11 @@ export class FileOperations {
 			return; // Source doesn't exist or is not a folder
 		}
 
-		// Get the folder name from the source path
-		const folderName = path.basename(sourceDir);
-		const targetPath = path.join(destinationDir, folderName);
+		// Ensure destination directory exists
+		await vault.createFolder(destinationDir).catch(() => {});
 
-		// Ensure target directory exists
-		await vault.createFolder(targetPath).catch(() => {});
-
-		// Copy all items from source to target
-		await this.copyDirectoryContentsWithinVault(vault, sourceFolder, targetPath);
+		// Copy all items from source to destination
+		await this.copyDirectoryContentsWithinVault(vault, sourceFolder, destinationDir);
 	}
 
 	/**
@@ -145,10 +137,10 @@ export class FileOperations {
 	private static async copyDirectoryContentsWithinVault(
 		vault: any,
 		sourceFolder: any,
-		targetPath: string
+		destinationPath: string
 	): Promise<void> {
 		for (const item of sourceFolder.children) {
-			const destItemPath = path.join(targetPath, item.name);
+			const destItemPath = path.join(destinationPath, item.name);
 
 			if (item.children) {
 				// It's a directory, recursively copy

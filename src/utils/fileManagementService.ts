@@ -260,8 +260,7 @@ export class FileManagementService {
 				templateFolderPath,
 				outputFolderPath
 			);
-			const folderName = templateFolderPath.split('/').pop() || 'template folder';
-			messageBuilder.addCustomMessage(`- Copying template folder '${folderName}' to export directory`);
+			messageBuilder.addCustomMessage("- Copying template folder contents");
 		} catch (error) {
 			console.warn("Failed to copy template folder:", error);
 			messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
@@ -286,8 +285,7 @@ export class FileManagementService {
 				templateFolderPath,
 				outputFolderPath
 			);
-			const folderName = templateFolderPath.split('/').pop() || 'template folder';
-			messageBuilder.addCustomMessage(`- Copying template folder '${folderName}' to export directory`);
+			messageBuilder.addCustomMessage("- Copying template folder contents");
 		} catch (error) {
 			console.warn("Failed to copy template folder:", error);
 			messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");

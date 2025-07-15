@@ -39,7 +39,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Template folder")
 			.setDesc(
-				"Relative vault path to a folder containing additional template files (e.g., style files, images, etc.). The entire folder will be copied into the export directory with its original name, preserving LaTeX relative paths."
+				"Relative vault path to a folder containing additional template files (e.g., style files, images, etc.). The entire folder contents will be copied to the export directory."
 			)
 			.addText((text) =>
 				text
