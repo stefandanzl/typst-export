@@ -26,6 +26,7 @@ export interface ExportPluginSettings {
 	display_env_titles: boolean;
 	default_env_name_to_file_name: boolean;
 	last_external_folder: string;
+	template_folder: string;
 }
 
 export const DEFAULT_SETTINGS: ExportPluginSettings = {
@@ -41,6 +42,7 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	display_env_titles: true,
 	default_env_name_to_file_name: false,
 	last_external_folder: "",
+	template_folder: "",
 };
 
 export const HEADING_STRUCTURE = {

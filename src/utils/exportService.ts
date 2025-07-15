@@ -59,15 +59,22 @@ export class ExportService {
 			// Handle supporting files
 			await this.handleSupportingFilesExternal(parsedContents, exportPaths, settings, messageBuilder);
 
+			// Handle template folder if specified
+			await this.fileManager.handleTemplateFolderExternal(
+				settings.template_folder,
+				exportPaths.outputFolderPath,
+				messageBuilder
+			);
+
 			// Write the main output file
 			await this.writeMainOutputFileExternal(parsedContents, exportPaths, settings);
 
 			// Handle media files
-		await this.fileManager.handleMediaFilesExternal(
-			parsedContents.media_files,
-			exportPaths.attachmentsPath,
-			messageBuilder
-		);
+			await this.fileManager.handleMediaFilesExternal(
+				parsedContents.media_files,
+				exportPaths.attachmentsPath,
+				messageBuilder
+			);
 
 			// Update settings with last external folder
 			settings.last_external_folder = outputPath;
@@ -118,6 +125,13 @@ export class ExportService {
 
 			// Handle supporting files
 			await this.handleSupportingFilesVault(parsedContents, exportPaths, settings, messageBuilder);
+
+			// Handle template folder if specified
+			await this.fileManager.handleTemplateFolderVault(
+				settings.template_folder,
+				exportPaths.outputFolderPath,
+				messageBuilder
+			);
 
 			// Check if output file exists and handle accordingly
 			let outputFile = this.app.vault.getFileByPath(exportPaths.outputFilePath);

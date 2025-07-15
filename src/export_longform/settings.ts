@@ -37,6 +37,21 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					})
 			);
 		new Setting(containerEl)
+			.setName("Template folder")
+			.setDesc(
+				"Relative vault path to a folder containing additional template files (e.g., style files, images, etc.). The entire folder will be copied into the export directory with its original name, preserving LaTeX relative paths."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/template_folder/")
+					.setValue(this.plugin.settings.template_folder)
+					.onChange(async (value) => {
+						this.plugin.settings.template_folder =
+							normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+		new Setting(containerEl)
 			.setName("Output folder")
 			.setDesc(
 				"Vault relative path of an existing folder in your vault. Exports will be written within that folder."

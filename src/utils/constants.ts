@@ -31,7 +31,9 @@ export const EXPORT_MESSAGES = {
 	NO_FILE: "No active file found.",
 	FOLDER_NOT_FOUND: "Output folder path not found, defaulting to the root of the vault.",
 	CLIPBOARD_SUCCESS: "Latex content copied to clipboard",
-	FOLDER_PICKER_ERROR: "Failed to open folder picker"
+	FOLDER_PICKER_ERROR: "Failed to open folder picker",
+	TEMPLATE_FOLDER_SUCCESS: "Template folder copied successfully",
+	TEMPLATE_FOLDER_ERROR: "Template folder not found or couldn't be copied"
 } as const;
 
 // Modal and UI messages

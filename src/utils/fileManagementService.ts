@@ -241,4 +241,56 @@ export class FileManagementService {
 
 		return { copiedFiles, overwrittenFiles, skippedFiles: 0, errors };
 	}
+
+	/**
+	 * Handles template folder copying for external exports
+	 */
+	async handleTemplateFolderExternal(
+		templateFolderPath: string,
+		outputFolderPath: string,
+		messageBuilder: ExportMessageBuilder
+	): Promise<void> {
+		if (!templateFolderPath || templateFolderPath.trim() === "") {
+			return; // No template folder specified
+		}
+
+		try {
+			FileOperations.copyDirectoryToExternal(
+				this.vaultAdapter,
+				templateFolderPath,
+				outputFolderPath
+			);
+			const folderName = templateFolderPath.split('/').pop() || 'template folder';
+			messageBuilder.addCustomMessage(`- Copying template folder '${folderName}' to export directory`);
+		} catch (error) {
+			console.warn("Failed to copy template folder:", error);
+			messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
+		}
+	}
+
+	/**
+	 * Handles template folder copying for vault exports
+	 */
+	async handleTemplateFolderVault(
+		templateFolderPath: string,
+		outputFolderPath: string,
+		messageBuilder: ExportMessageBuilder
+	): Promise<void> {
+		if (!templateFolderPath || templateFolderPath.trim() === "") {
+			return; // No template folder specified
+		}
+
+		try {
+			await FileOperations.copyDirectoryWithinVault(
+				this.vault,
+				templateFolderPath,
+				outputFolderPath
+			);
+			const folderName = templateFolderPath.split('/').pop() || 'template folder';
+			messageBuilder.addCustomMessage(`- Copying template folder '${folderName}' to export directory`);
+		} catch (error) {
+			console.warn("Failed to copy template folder:", error);
+			messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
+		}
+	}
 }
