@@ -1,4 +1,5 @@
 import { notice_and_warn, strip_newlines } from "./utils";
+import { PERFORMANCE_CONSTANTS } from "../utils/constants";
 import {
 	node,
 	metadata_for_unroll,
@@ -164,7 +165,7 @@ async function render_content(
 	content: node[],
 	settings: ExportPluginSettings
 ): Promise<string> {
-	const buffer = Buffer.alloc(10000000); // made this very big. Too big? For my paper I run out with two orders of magnitude smaller.
+	const buffer = Buffer.alloc(PERFORMANCE_CONSTANTS.RENDER_BUFFER_SIZE);
 	let offset = 0;
 	for (const elt of content) {
 		offset = await elt.latex(buffer, offset, settings);

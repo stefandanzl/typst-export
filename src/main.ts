@@ -1,5 +1,3 @@
-import * as path from "path";
-import * as fs from "fs";
 import {
 	App,
 	Editor,
@@ -7,14 +5,22 @@ import {
 	MarkdownView,
 	MarkdownFileInfo,
 	Plugin,
-	PluginSettingTab,
-	Setting,
 	TFile,
-	Modal,
-	normalizePath,
-	FileSystemAdapter,
 } from "obsidian";
 import { LatexExportSettingTab } from "./export_longform/settings";
+import { 
+	ExportService,
+	WarningModal,
+	EXPORT_MESSAGES,
+	DIALOG_CONFIG,
+	UI_MESSAGES,
+	ExportConfig,
+	ExternalExportDialogResult
+} from "./utils";
+import {
+	ExportPluginSettings,
+	DEFAULT_SETTINGS,
+} from "./export_longform";
 
 // Use require for Electron compatibility in Obsidian
 const { remote } = require("electron");
@@ -24,527 +30,75 @@ interface OpenDialogReturnValue {
 	canceled: boolean;
 	filePaths: string[];
 }
-import {
-	parse_longform,
-	export_selection,
-	write_without_template,
-	write_with_template,
-	get_header_tex,
-	ExportPluginSettings,
-	DEFAULT_SETTINGS,
-	parsed_longform,
-	notice_and_warn,
-} from "./export_longform";
-import { DEFAULT_LATEX_TEMPLATE } from "./export_longform/interfaces";
 
+/**
+ * Main plugin class for LaTeX export functionality
+ * Refactored to use service classes and better separation of concerns
+ */
 export default class ExportPaperPlugin extends Plugin {
 	settings: ExportPluginSettings;
-	find_file = (address: string): TFile | undefined => {
-		const temp_result = this.app.metadataCache.getFirstLinkpathDest(
-			address,
-			"/"
-		);
-		if (temp_result) {
-			return temp_result;
-		} else {
-			return undefined;
-		}
-	};
+	private exportService: ExportService;
 
-	// External export method with FileSystemAdapter
-	async export_to_external_folder(
-		active_file: TFile,
-		external_folder: string,
-		skip_overwrite_check: boolean = false
-	) {
-		const parsed_contents = await parse_longform(
-			this.app.vault.cachedRead.bind(this.app.vault),
-			this.find_file,
-			active_file,
-			this.settings
-		);
-
-		const output_folder_name = active_file.basename.replace(/ /g, "_");
-		const output_folder_path = path.join(
-			external_folder,
-			output_folder_name
-		);
-		const output_file_name = `${active_file.basename}_output.tex`;
-		const output_path = path.join(output_folder_path, output_file_name);
-
-		// Check for overwrite
-		if (
-			fs.existsSync(output_path) &&
-			!skip_overwrite_check &&
-			this.settings.warn_before_overwrite
-		) {
-			new WarningModal(
-				this.app,
-				this,
-				() =>
-					this.export_to_external_folder(
-						active_file,
-						external_folder,
-						true
-					),
-				"It seems there is a previously exported file in the external folder. Overwrite it?"
-			).open();
-			return;
-		}
-
-		// Create external folder if it doesn't exist
-		if (!fs.existsSync(output_folder_path)) {
-			fs.mkdirSync(output_folder_path, { recursive: true });
-		}
-
-		let export_message = "SUCCESS!!\nExporting to external folder:\n";
-		const preamble_file =
-			this.app.vault.getFileByPath(this.settings.preamble_file) ??
-			undefined;
-		const new_preamble_path = path.join(output_folder_path, "preamble.sty");
-		if (preamble_file) {
-			const preamble_exists = fs.existsSync(new_preamble_path);
-			if (this.settings.overwrite_preamble && preamble_exists) {
-				fs.copyFileSync(
-					(this.app.vault.adapter as FileSystemAdapter).getFullPath(
-						preamble_file.path
-					),
-					new_preamble_path
-				);
-				export_message += "- Overwriting the preamble file\n";
-			} else if (!preamble_exists) {
-				fs.copyFileSync(
-					(this.app.vault.adapter as FileSystemAdapter).getFullPath(
-						preamble_file.path
-					),
-					new_preamble_path
-				);
-				export_message += "- Copying the preamble file\n";
-			} else {
-				export_message += "- Without overwriting the preamble file\n";
-			}
-		} else {
-			export_message += "- Without a preamble file (none found)\n";
-		}
-
-		const header_path = path.join(output_folder_path, "header.tex");
-		const header_exists = fs.existsSync(header_path);
-		if (this.settings.overwrite_header && header_exists) {
-			fs.writeFileSync(header_path, get_header_tex());
-			export_message += "- Overwriting the header file\n";
-		} else if (!header_exists) {
-			fs.writeFileSync(header_path, get_header_tex());
-			export_message += "- Creating the header file\n";
-		} else {
-			export_message += "- Without overwriting the header file\n";
-		}
-
-		const bib_file =
-			this.app.vault.getFileByPath(this.settings.bib_file) ?? undefined;
-		const new_bib_path = path.join(output_folder_path, "bibliography.bib");
-		if (bib_file) {
-			const bib_exists = fs.existsSync(new_bib_path);
-			if (!bib_exists) {
-				fs.copyFileSync(
-					(this.app.vault.adapter as FileSystemAdapter).getFullPath(
-						bib_file.path
-					),
-					new_bib_path
-				);
-				export_message += "- Copying the bib file\n";
-			} else {
-				export_message += "- Without overwriting the bib file\n";
-			}
-		} else {
-			export_message += "- Without a bib file (none found)\n";
-		}
-
-		const template_file =
-			this.app.vault.getFileByPath(this.settings.template_path) ??
-			undefined;
-
-		let template_content = DEFAULT_LATEX_TEMPLATE;
-		if (template_file) {
-			template_content = await this.app.vault.read(template_file);
-			export_message += "- Using the specified template file,\n";
-		}
-		await write_with_template(
-			template_content,
-			parsed_contents,
-			this.settings.sectionTemplateNames,
-			{ path: output_path } as TFile,
-			async (_file, content) => fs.writeFileSync(output_path, content),
-			preamble_file
-		);
-		// await write_without_template(
-		// 	parsed_contents,
-		// 	{ path: output_path } as TFile,
-		// 	async (_file, content) => fs.writeFileSync(output_path, content),
-		// 	preamble_file
-		// );
-
-		if (parsed_contents.media_files.length > 0) {
-			const files_folder = path.join(output_folder_path, "Attachments");
-			if (!fs.existsSync(files_folder)) {
-				fs.mkdirSync(files_folder);
-			}
-			let copying_message_added = false;
-			let skipping_message_added = false;
-
-			for (const media_file of parsed_contents.media_files) {
-				const destination_path = path.join(
-					files_folder,
-					media_file.name
-				);
-				const file_exists = fs.existsSync(destination_path);
-
-				if (this.settings.overwrite_figures && file_exists) {
-					fs.copyFileSync(
-						(
-							this.app.vault.adapter as FileSystemAdapter
-						).getFullPath(media_file.path),
-						destination_path
-					);
-					export_message += `- Overwriting figure file: ${media_file.name}\n`;
-				} else if (!file_exists) {
-					fs.copyFileSync(
-						(
-							this.app.vault.adapter as FileSystemAdapter
-						).getFullPath(media_file.path),
-						destination_path
-					);
-					if (!copying_message_added) {
-						export_message += "- Copying figure files\n";
-						copying_message_added = true;
-					}
-				} else if (!skipping_message_added) {
-					export_message += "- Without overwriting figure files\n";
-					skipping_message_added = true;
-				}
-			}
-		}
-
-		this.settings.last_external_folder = external_folder;
-		await this.saveSettings();
-
-		new Notice(
-			`${export_message}To external folder: ${output_folder_path}`
-		);
-	}
-	async find_files_and_export(
-		active_file: TFile,
-		settings: ExportPluginSettings
-	) {
-		if (this.settings.base_output_folder === "") {
-			this.settings.base_output_folder = "/";
-		}
-		const notes_dir = this.app.vault;
-		const parsed_contents = await parse_longform(
-			notes_dir.cachedRead.bind(notes_dir),
-			this.find_file,
-			active_file,
-			settings
-		);
-
-		let base_folder;
-		if (parsed_contents.yaml["export_dir"] != null) {
-			// console.log(parsed_contents.yaml["export_dir"] === "Shared/Exact_regularisation/exports")
-			base_folder = this.app.vault.getFolderByPath(
-				// parsed_contents.yaml["export_dir"],
-				parsed_contents.yaml["export_dir"]
-			);
-		} else {
-			base_folder = this.app.vault.getFolderByPath(
-				this.settings.base_output_folder
-			);
-		}
-		if (!base_folder) {
-			notice_and_warn(
-				"Output folder path not found, defaulting to the root of the vault."
-			);
-			base_folder = this.app.vault.getRoot();
-		}
-		const output_file_name = active_file.basename + "_output.tex";
-		let output_folder_path = path.join(
-			base_folder.path,
-			active_file.basename.replace(/ /g, "_")
-		);
-		const output_folder_match = /^\/(.*)$/.exec(output_folder_path);
-		if (output_folder_match) {
-			output_folder_path = output_folder_match[1];
-		}
-		let output_path = path.join(output_folder_path, output_file_name);
-		await this.app.vault.createFolder(output_folder_path).catch((e) => e);
-		// await this.create_folder_if_not(output_folder_path);
-		const the_preamble_file = this.app.vault.getFileByPath(
-			this.settings.preamble_file
-		);
-		let export_message = "SUCCESS!!\nExporting the current file:\n";
-		const preamble_file = the_preamble_file ? the_preamble_file : undefined;
-		if (preamble_file !== undefined) {
-			const new_preamble = path.join(output_folder_path, "preamble.sty");
-			const existing_preamble =
-				this.app.vault.getFileByPath(new_preamble);
-			if (this.settings.overwrite_preamble && existing_preamble) {
-				await this.app.vault.delete(existing_preamble);
-				await this.app.vault.copy(preamble_file, new_preamble);
-				export_message += "- Overwriting the preamble file\n";
-			} else if (!existing_preamble) {
-				await this.app.vault.copy(preamble_file, new_preamble);
-				export_message += "- Copying the preamble file\n";
-			} else {
-				export_message += "- Without overwriting the preamble file\n";
-			}
-		} else {
-			export_message += " - Without a preamble file (none found)\n";
-		}
-		const header_path = path.join(output_folder_path, "header.tex");
-		const header_file = this.app.vault.getFileByPath(header_path);
-		if (this.settings.overwrite_header || !header_file) {
-			if (header_file) {
-				await this.app.vault.delete(header_file);
-				export_message += "- Overwriting the header file\n";
-			} else {
-				export_message += "- Creating the header file\n";
-			}
-			await this.app.vault.create(header_path, get_header_tex());
-		} else {
-			export_message += "- Without overwriting the header file\n";
-		}
-		const the_bib_file = this.app.vault.getFileByPath(
-			this.settings.bib_file
-		);
-		const bib_file = the_bib_file ? the_bib_file : undefined;
-		if (bib_file !== undefined) {
-			const new_bib = path.join(output_folder_path, "bibliography.bib");
-			const existing_bib = this.app.vault.getFileByPath(new_bib);
-			if (!existing_bib) {
-				await this.app.vault.copy(bib_file, new_bib);
-				export_message += "- Copying the bib file\n";
-			} else {
-				export_message += "- Without overwriting the bib file\n";
-			}
-		} else {
-			export_message += "- Without a bib file (none found)\n";
-		}
-		const the_template_file = this.app.vault.getFileByPath(
-			this.settings.template_path
-		);
-		const template_file =
-			the_template_file !== null ? the_template_file : undefined;
-		if (template_file !== undefined) {
-			export_message += "- Using the specified template file,\n";
-		}
-
-		let out_file = this.app.vault.getFileByPath(output_path);
-		if (out_file === null) {
-			out_file = await this.app.vault.create(output_path, "");
-			await this.proceed_with_export(
-				active_file,
-				parsed_contents,
-				settings,
-				output_folder_path,
-				template_file,
-				out_file,
-				preamble_file,
-				export_message
-			);
-		} else {
-			const out_file_other = out_file;
-			if (this.settings.warn_before_overwrite) {
-				new WarningModal(
-					this.app,
-					this,
-					() =>
-						this.proceed_with_export(
-							active_file,
-							parsed_contents,
-							settings,
-							output_folder_path,
-							template_file,
-							out_file_other,
-							preamble_file,
-							export_message
-						),
-					"It seems there is a previously exported file. Overwrite it?"
-				).open();
-			} else {
-				await this.proceed_with_export(
-					active_file,
-					parsed_contents,
-					settings,
-					output_folder_path,
-					template_file,
-					out_file,
-					preamble_file,
-					export_message
-				);
-			}
-		}
-	}
-
-	async proceed_with_export(
-		active_file: TFile,
-		parsed_contents: parsed_longform,
-		settings: ExportPluginSettings,
-		output_folder_path: string,
-		template_file: TFile | undefined,
-		out_file: TFile,
-		preamble_file: TFile | undefined,
-		partial_message: string = ""
-	) {
-		const notes_dir = this.app.vault;
-
-		if (parsed_contents.media_files.length > 0) {
-			const files_folder = path.join(output_folder_path, "Attachments");
-			await this.app.vault.createFolder(files_folder).catch((e) => e);
-			// await this.create_folder_if_not(files_folder);
-			let copying_message_added = false;
-			let skipping_message_added = false;
-
-			for (const media_file of parsed_contents.media_files) {
-				const destination_path = path.join(
-					files_folder,
-					media_file.name
-				);
-				const existing_file =
-					this.app.vault.getFileByPath(destination_path);
-
-				if (settings.overwrite_figures && existing_file) {
-					await this.app.vault.delete(existing_file);
-					await this.app.vault
-						.copy(media_file, destination_path)
-						.catch((e) => e);
-					partial_message += `- Overwriting figure file: ${media_file.name}\n`;
-				} else if (!existing_file) {
-					await this.app.vault
-						.copy(media_file, destination_path)
-						.catch((e) => e);
-					if (!copying_message_added) {
-						partial_message += "- Copying figure files\n";
-						copying_message_added = true;
-					}
-				} else if (!skipping_message_added) {
-					partial_message += "- Without overwriting figure files\n";
-					skipping_message_added = true;
-				}
-			}
-		}
-
-		let template_content = DEFAULT_LATEX_TEMPLATE;
-		if (template_file) {
-			template_content = await this.app.vault.read(template_file);
-		}
-		await write_with_template(
-			template_content,
-			parsed_contents,
-			this.settings.sectionTemplateNames,
-			out_file,
-			notes_dir.modify.bind(notes_dir),
-			preamble_file
-		);
-		/**
-		if (template_file !== undefined) {
-			await write_with_template(
-				template_file,
-				parsed_contents,
-				this.settings.sectionTemplateNames,
-				out_file,
-				notes_dir.modify.bind(notes_dir),
-				notes_dir.cachedRead.bind(notes_dir)
-			);
-		} else {
-			await write_without_template(
-				parsed_contents,
-				out_file,
-				notes_dir.modify.bind(notes_dir),
-				preamble_file
-			);
-		}*/
-		new Notice(
-			partial_message +
-				"To the vault folder inside the vault:\n" +
-				output_folder_path +
-				"/"
-		);
-	}
-
-	async export_with_selection(
-		active_file: TFile,
-		selection: string,
-		settings: ExportPluginSettings
-	) {
-		try {
-			return export_selection(
-				this.app.vault.cachedRead.bind(this.app.vault),
-				this.find_file,
-				active_file,
-				selection,
-				settings
-			);
-		} catch (e) {
-			console.error(e);
-		}
-	}
-
-	async onload() {
+	async onload(): Promise<void> {
 		await this.loadSettings();
+		
+		// Initialize services
+		this.exportService = new ExportService(this.app);
 
+		// Register commands
+		this.registerCommands();
+		
+		// Add settings tab
+		this.addSettingTab(new LatexExportSettingTab(this.app, this));
+	}
+
+	onunload(): void {
+		// Cleanup if needed
+	}
+
+	/**
+	 * Register all plugin commands
+	 */
+	private registerCommands(): void {
+		// In-vault export command
 		this.addCommand({
 			id: "export-paper",
 			name: "Export current note in-vault",
 			checkCallback: (checking: boolean) => {
-				const active_file = this.app.workspace.getActiveFile();
-				if (!(active_file instanceof TFile)) {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (!(activeFile instanceof TFile)) {
 					return false;
-					// new Notice("No active file found.");
-					// throw new Error("No active file found.");
-				} else if (checking) {
-					return true;
-				} else {
-					this.find_files_and_export(active_file, this.settings);
 				}
+				
+				if (checking) {
+					return true;
+				}
+				
+				this.handleVaultExport(activeFile);
+				return true;
 			},
 		});
 
-		// NEW: Updated external export command with folder picker
+		// External export command
 		this.addCommand({
 			id: "export-paper-external",
 			name: "Export current note to external folder",
 			checkCallback: (checking: boolean) => {
-				const active_file = this.app.workspace.getActiveFile();
-				if (!(active_file instanceof TFile)) {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (!(activeFile instanceof TFile)) {
 					return false;
-				} else if (checking) {
-					return true;
-				} else {
-					remote.dialog
-						.showOpenDialog({
-							properties: ["openDirectory"],
-						})
-						.then((result: OpenDialogReturnValue) => {
-							if (
-								result.canceled ||
-								!result.filePaths ||
-								result.filePaths.length === 0
-							) {
-								new Notice("External export cancelled");
-								return;
-							}
-							const selectedPath = result.filePaths[0];
-							this.export_to_external_folder(
-								active_file,
-								selectedPath
-							);
-						})
-						.catch((err: Error) => {
-							console.error("Error opening folder picker:", err);
-							new Notice("Failed to open folder picker");
-						});
 				}
+				
+				if (checking) {
+					return true;
+				}
+				
+				this.handleExternalExport(activeFile);
+				return true;
 			},
 		});
 
+		// Selection export command
 		this.addCommand({
 			id: "selection-export-paper",
 			name: "Export selection to clipboard",
@@ -556,24 +110,159 @@ export default class ExportPaperPlugin extends Plugin {
 				if (checking) {
 					return editor.somethingSelected();
 				}
-				const active_file = ctx.file;
-				if (!active_file) {
-					throw new Error("No active file found.");
+				
+				const activeFile = ctx.file;
+				if (!activeFile) {
+					new Notice(EXPORT_MESSAGES.NO_FILE);
+					return;
 				}
+				
 				const selection = editor.getSelection();
-				this.export_with_selection(
-					active_file,
-					selection,
-					this.settings
-				);
+				this.handleSelectionExport(activeFile, selection);
 			},
 		});
-		this.addSettingTab(new LatexExportSettingTab(this.app, this));
 	}
 
-	onunload() {}
+	/**
+	 * Handle vault export with proper error handling and user feedback
+	 */
+	private async handleVaultExport(activeFile: TFile): Promise<void> {
+		try {
+			const config: ExportConfig = {
+				activeFile,
+				settings: this.settings
+			};
 
-	async loadSettings() {
+			const result = await this.exportService.exportToVault(config);
+
+			if (!result.success) {
+				if (result.outputPath && result.message.includes("overwrite check needed")) {
+					// Show overwrite confirmation modal
+					const modal = WarningModal.createVaultOverwriteModal(
+						this.app,
+						async () => {
+							const retryConfig: ExportConfig = { ...config, skipOverwriteCheck: true };
+							await this.exportService.exportToVault(retryConfig);
+							
+							// Check if user wanted to remember choice
+							if (modal.getRememberChoice()) {
+								this.settings.warn_before_overwrite = false;
+								await this.saveSettings();
+							}
+						}
+					);
+					modal.open();
+				} else {
+					new Notice(result.message);
+					if (result.error) {
+						console.error("Vault export error:", result.error);
+					}
+				}
+			}
+		} catch (error) {
+			console.error("Failed to handle vault export:", error);
+			new Notice("Failed to export to vault. Check console for details.");
+		}
+	}
+
+	/**
+	 * Handle external export with folder picker and proper error handling
+	 */
+	private async handleExternalExport(activeFile: TFile): Promise<void> {
+		try {
+			const dialogResult = await this.showFolderPicker();
+			
+			if (dialogResult.cancelled || !dialogResult.selectedPath) {
+				new Notice(EXPORT_MESSAGES.CANCELLED);
+				return;
+			}
+
+			const config: ExportConfig = {
+				activeFile,
+				settings: this.settings,
+				outputPath: dialogResult.selectedPath
+			};
+
+			const result = await this.exportService.exportToExternalFolder(config);
+
+			if (!result.success) {
+				if (result.outputPath && result.message.includes("overwrite check needed")) {
+					// Show overwrite confirmation modal
+					const modal = WarningModal.createExternalOverwriteModal(
+						this.app,
+						async () => {
+							const retryConfig: ExportConfig = { ...config, skipOverwriteCheck: true };
+							await this.exportService.exportToExternalFolder(retryConfig);
+							
+							// Update last external folder
+							this.settings.last_external_folder = dialogResult.selectedPath!;
+							await this.saveSettings();
+						}
+					);
+					modal.open();
+				} else {
+					new Notice(result.message);
+					if (result.error) {
+						console.error("External export error:", result.error);
+					}
+				}
+			} else {
+				// Update last external folder on success
+				this.settings.last_external_folder = dialogResult.selectedPath;
+				await this.saveSettings();
+			}
+		} catch (error) {
+			console.error("Failed to handle external export:", error);
+			new Notice(EXPORT_MESSAGES.FOLDER_PICKER_ERROR);
+		}
+	}
+
+	/**
+	 * Handle selection export to clipboard
+	 */
+	private async handleSelectionExport(activeFile: TFile, selection: string): Promise<void> {
+		try {
+			const result = await this.exportService.exportSelectionToClipboard(
+				activeFile,
+				selection,
+				this.settings
+			);
+
+			if (!result.success) {
+				new Notice(result.message);
+				if (result.error) {
+					console.error("Selection export error:", result.error);
+				}
+			}
+		} catch (error) {
+			console.error("Failed to handle selection export:", error);
+			new Notice("Failed to export selection. Check console for details.");
+		}
+	}
+
+	/**
+	 * Show folder picker dialog for external export
+	 */
+	private async showFolderPicker(): Promise<ExternalExportDialogResult> {
+		try {
+			const result: OpenDialogReturnValue = await remote.dialog.showOpenDialog({
+				properties: DIALOG_CONFIG.PROPERTIES,
+			});
+
+			return {
+				cancelled: result.canceled,
+				selectedPath: result.canceled ? undefined : result.filePaths[0]
+			};
+		} catch (error) {
+			console.error("Error opening folder picker:", error);
+			throw new Error("Failed to open folder picker");
+		}
+	}
+
+	/**
+	 * Load plugin settings with defaults
+	 */
+	async loadSettings(): Promise<void> {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
@@ -581,62 +270,10 @@ export default class ExportPaperPlugin extends Plugin {
 		);
 	}
 
-	async saveSettings() {
+	/**
+	 * Save plugin settings
+	 */
+	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
-	}
-}
-
-class WarningModal extends Modal {
-	private plugin: ExportPaperPlugin;
-	private rememberChoice: boolean;
-	private callback: any;
-	private message: string;
-
-	constructor(
-		app: App,
-		plugin: ExportPaperPlugin,
-		callback: any,
-		message: string
-	) {
-		super(app);
-		this.plugin = plugin;
-		this.rememberChoice = false;
-		this.callback = callback;
-		this.message = message;
-	}
-
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.setText(this.message);
-
-		new Setting(contentEl)
-			.addButton((btn) =>
-				btn.setButtonText("OK").onClick(async () => {
-					if (this.rememberChoice) {
-						this.plugin.settings.warn_before_overwrite = false;
-					}
-					await this.callback();
-					await this.plugin.saveSettings();
-					this.close();
-				})
-			)
-			.addButton((btn) =>
-				btn.setButtonText("Cancel").onClick(() => {
-					this.close();
-				})
-			);
-
-		const toggleContainer = contentEl.createDiv();
-		toggleContainer.createDiv({ text: "Remember my choice:" });
-		new Setting(toggleContainer).addToggle((toggle) =>
-			toggle
-				.setValue(false)
-				.onChange((value) => (this.rememberChoice = value))
-		);
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
 	}
 }
