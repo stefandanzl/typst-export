@@ -12,15 +12,7 @@
 		"isolatedModules": true,
 		"strictNullChecks": true,
 		"allowSyntheticDefaultImports": true,
-		"lib": [
-			"DOM",
-			"ES2021.String",
-			"ES5",
-			"ES6",
-			"ES7"
-		]
+		"lib": ["DOM", "ES2021.String", "ES5", "ES6", "ES7"]
 	},
-	"include": [
-		"src/*.ts"
-, "src/export_longform/interfaces.ts", "src/export_longform/display.ts", "src/export_longform/utils.ts", "src/export_longform/parseMarkdown.ts", "src/export_longform/labels.ts", "src/export_longform/wikilinks.ts", "src/export_longform/inline.ts", "src/export_longform/headers.ts", "tests/test_utils.ts"	]
+	"include": ["src/**.ts"]
 }

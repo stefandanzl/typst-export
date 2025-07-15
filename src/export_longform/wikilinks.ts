@@ -200,7 +200,7 @@ export class Plot implements node {
 			`\\begin{figure}[h]
 \\centering
 \\includegraphics[width=\\textwidth]{` +
-				"Files" +
+				"Attachments" +
 				"/" +
 				this.image.name +
 				"}\n", // Cannot use path.join, because the path is a latex path.

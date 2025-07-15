@@ -48,7 +48,7 @@ To use citations, place a bib file named `bibliography.bib` in the root of your 
 
 *Using a template*: In the settings, it is possible to specify the path to a template file. If this field is left blank, then the plugin will generate minimal LaTeX code required for the export to compile well. To use a template, place a template file inside your vault and specify its path in the plugin settings. A template file should contains LaTeX code with a pandoc-style anchor `$body$`, to be replaced by the converted content of the longform note. The anchors `$abstract$` and `$appendix$` can optionally be specified.
 #### Overwriting behavior
-Before making manual changes to the exported LaTeX file, be careful to first copy the newly-generated folder to a different location, because under some settings (not the default), re-running the export command from the same note will overwrite the exported LaTeX file (surrounding files, like the preamble or bib file, will not be overwritten unless specified in settings). This overwriting setting is meant to facilitate editing the obsidian files while seeing the updated LaTeX output quickly. Additional settings allow overwriting figure files (`Files` folder) and the header file (`header.tex`) during export.
+Before making manual changes to the exported LaTeX file, be careful to first copy the newly-generated folder to a different location, because under some settings (not the default), re-running the export command from the same note will overwrite the exported LaTeX file (surrounding files, like the preamble or bib file, will not be overwritten unless specified in settings). This overwriting setting is meant to facilitate editing the obsidian files while seeing the updated LaTeX output quickly. Additional settings allow overwriting figure files (`Attachments` folder) and the header file (`header.tex`) during export.
 ### `Latex Exporter:Export selection to clipboard`
 This command exports the selected portion of the current note to the clipboard. To use this command, navigate to the note of interest, go to the editing view (it does not work in reading view), select a portion of the note by dragging your cursor, and while the text is selected run `Cmd+P` and select the command `Latex Exporter:Export selection to clipboard`. Be warned that the LaTeX exported using this method will only compile well if pasted into a document that imports the relevant LaTeX packages.
 ### Warnings
@@ -130,11 +130,11 @@ The following is supported:
 ### Figures
 Figures are created from embed links of image files, and are recognized by their file suffix. A caption can be added in the display section of the link: `![[image.jpeg|caption text here]]`. There are some themes in Obsidian which will display captions of this kind. Figures are referenced with wikilinks to the embedded file.
 
-Images will be copied to a subfolder of the output folder named "Files".
+Images will be copied to a subfolder of the output folder named "Attachments".
 #### Excalidraw support
 To export excalidraw embedded images, follow the following instructions. 
 1. In the Excalidraw settings, enable "Embedding Excalidraw into your Notes and Exporting > Export Settings > Auto-export Settings > Auto-export PNG".
-2. Make sure that the PNG exported by Excalidraw is in the /Files folder at the root of your vault. The embedding wikilink can be to the Excalidraw note (instead of the exported PNG).
+2. Make sure that the PNG exported by Excalidraw is in the /Attachments folder at the root of your vault. The embedding wikilink can be to the Excalidraw note (instead of the exported PNG).
 ### Lists
 Both ordered, and unordered lists are supported. Lines following a number will be included in the item, regardless of indent. To finish a list, leave a blank line. Nested unordered lists are not supported.
 # Known limitations
