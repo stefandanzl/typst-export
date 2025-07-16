@@ -35,8 +35,8 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	base_output_folder: "/",
 	documentStructureType: "article",
 	sectionTemplateNames: ["abstract", "appendix"],
-	preamble_file: "preamble.sty",
-	bib_file: "bibliography.bib",
+	preamble_file: "",
+	bib_file: "",
 	prioritize_lists: false, // Whether to parse lists or equations first. Lists first allows lists containing display equations, but yields bugs because lines within an equation can easily start with '-'.
 	default_citation_command: "cite",
 	display_env_titles: true,

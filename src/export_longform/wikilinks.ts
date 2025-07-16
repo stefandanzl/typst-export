@@ -902,6 +902,107 @@ export class MultiCitation implements node {
 	}
 }
 
+export class AliasCitation implements node {
+	id: string;
+	type: string | undefined;
+	result: string | undefined;
+	
+	static get_regexp(): RegExp {
+		// Matches: [prefix][[filename|@alias]][suffix] with optional prefix and suffix
+		return /(?:\[([^@\[]*?)\])?\[\[([^\|\]]+)\|(@[a-zA-Z0-9\.\-_]+)\]\](?:\[([^@\[]*?)\])?/g;
+	}
+	
+	static build_from_match(
+		args: RegExpMatchArray,
+		settings: ExportPluginSettings
+	): AliasCitation {
+		const prefix = args[1]; // Optional prefix like "std", "txt"
+		const filename = args[2]; // The actual filename  
+		const alias = args[3].substring(1); // Remove @ prefix for citation
+		const suffix = args[4]; // Optional suffix like "p. 14"
+		
+		let type = undefined;
+		let result: string | undefined = suffix;
+		
+		// Handle prefix for citation type
+		if (prefix !== undefined) {
+			if (prefix === "std" || prefix === "txt" || prefix === "parenthesis" || prefix === "year") {
+				type = prefix;
+			} else {
+				// If prefix is not a known type, treat it as result text
+				result = prefix;
+			}
+		}
+		
+		// Handle suffix - if prefix was a type and we have suffix, use suffix as result
+		if (type !== undefined && suffix !== undefined) {
+			result = suffix;
+		}
+		
+		// Special handling for "std" and "txt" in suffix (like regular Citation)
+		if (result === "std" || result === "txt") {
+			type = result;
+			result = undefined;
+		}
+		
+		return new AliasCitation(alias, type, result);
+	}
+	
+	constructor(id: string, type?: string, suffix?: string) {
+		if (
+			!(
+				type == undefined ||
+				type == "txt" ||
+				type == "std" ||
+				type == "year" ||
+				type == "parenthesis"
+			)
+		) {
+			// Invalid type, default to textcite
+			this.type = "txt";
+		} else {
+			this.type = type || "txt"; // Default to textcite for alias citations
+		}
+		this.id = id;
+		this.result = suffix;
+	}
+	
+	async unroll(): Promise<node[]> {
+		return [this];
+	}
+	
+	async latex(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	): Promise<number> {
+		let citestring = "\\";
+		let citeword;
+		
+		if (this.type == "txt") {
+			citeword = "textcite";
+		} else if (this.type == "std") {
+			citeword = "cite";
+		} else if (this.type == "parenthesis") {
+			citeword = "parencite";
+		} else if (this.type == "year") {
+			citeword = "citeyear";
+		} else if (this.type == undefined) {
+			citeword = settings.default_citation_command;
+		} else {
+			throw Error("Invalid type: " + this.type);
+		}
+		
+		citestring += citeword;
+		if (this.result !== undefined) {
+			citestring += "[" + this.result + "]";
+		}
+		citestring += "{" + this.id + "}";
+		
+		return buffer_offset + buffer.write(citestring, buffer_offset);
+	}
+}
+
 export class PandocMultiCitation implements node {
 	ids: string[];
 	type: string;

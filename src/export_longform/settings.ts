@@ -77,24 +77,30 @@ export class LatexExportSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Math preamble file")
 			.setDesc(
-				"Vault relative path to a preamble.sty file in your vault. It will be included in the export."
+				"Vault relative path to a preamble.sty file in your vault. It will be included in the export. Example: 'preamble.sty' or 'styles/my-preamble.sty'. Leave empty if you don't have a preamble file."
 			)
 			.addText((text) =>
 				text
 					.setPlaceholder("path/to/preamble_file")
 					.setValue(this.plugin.settings.preamble_file)
 					.onChange(async (value) => {
-						this.plugin.settings.preamble_file =
-							normalizePath(value);
+						// Don't normalize empty string to "/"
+						this.plugin.settings.preamble_file = value.trim() === "" ? "" : normalizePath(value);
 						await this.plugin.saveSettings();
 					})
 			);
-		new Setting(containerEl).setName("Bib file").addText((text) =>
+		new Setting(containerEl)
+			.setName("Bib file")
+			.setDesc(
+				"Vault relative path to a bibliography file in your vault. Example: 'bibliography.bib' or 'refs/my-references.bib'. Leave empty if you don't have a bibliography file."
+			)
+			.addText((text) =>
 			text
 				.setPlaceholder("path/to/bib_file")
 				.setValue(this.plugin.settings.bib_file)
 				.onChange(async (value) => {
-					this.plugin.settings.bib_file = normalizePath(value);
+					// Don't normalize empty string to "/"
+					this.plugin.settings.bib_file = value.trim() === "" ? "" : normalizePath(value);
 					await this.plugin.saveSettings();
 				})
 		);

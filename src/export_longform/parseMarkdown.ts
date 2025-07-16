@@ -30,6 +30,7 @@ import {
 	Environment,
 	Hyperlink,
 	Table,
+	AliasCitation,
 } from "./wikilinks";
 import {
 	split_inline,
@@ -597,6 +598,12 @@ export function parse_inline(
 		ExplicitRef.build_from_match,
 		settings
 	); // Must be before citations.
+	inline_arr = split_inline<AliasCitation>(
+		inline_arr,
+		AliasCitation.get_regexp(),
+		AliasCitation.build_from_match,
+		settings
+	); // Must be before regular wikilinks and citations.
 	inline_arr = split_inline<MultiCitation>(
 		inline_arr,
 		MultiCitation.get_regexp(),
