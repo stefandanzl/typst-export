@@ -213,5 +213,56 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
+		// Add export format selection first  
+		new Setting(containerEl)
+			.setName("Export format")
+			.setDesc("Choose between LaTeX and Typst output formats")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("latex", "LaTeX")
+					.addOption("typst", "Typst")
+					.setValue(this.plugin.settings.export_format)
+					.onChange(async (value: "latex" | "typst") => {
+						this.plugin.settings.export_format = value;
+						await this.plugin.saveSettings();
+						// Refresh the display to show/hide format-specific settings
+						this.display();
+					})
+			);
+
+		// Add format-specific template settings
+		if (this.plugin.settings.export_format === "typst") {
+			new Setting(containerEl)
+				.setName("Typst template file")
+				.setDesc(
+					"Relative vault path to a Typst template file. Only set this if you would like to export with a custom Typst template."
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("path/to/template_file.typ")
+						.setValue(this.plugin.settings.typst_template_path)
+						.onChange(async (value) => {
+							this.plugin.settings.typst_template_path =
+								normalizePath(value || "");
+							await this.plugin.saveSettings();
+						})
+				);
+				
+			new Setting(containerEl)
+				.setName("Typst preamble file")
+				.setDesc(
+					"Vault relative path to a Typst preamble file in your vault. It will be imported in the export. Example: 'preamble.typ' or 'styles/my-preamble.typ'. Leave empty if you don't have a preamble file."
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("path/to/preamble_file.typ")
+						.setValue(this.plugin.settings.typst_preamble_file)
+						.onChange(async (value) => {
+							this.plugin.settings.typst_preamble_file = value.trim() === "" ? "" : normalizePath(value);
+							await this.plugin.saveSettings();
+						})
+				);
+		}
 	}
 }

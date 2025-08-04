@@ -11,6 +11,11 @@ export interface node {
 		buffer_offset: number,
 		settings: ExportPluginSettings
 	): Promise<number>;
+	typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	): Promise<number>;
 }
 
 export interface ExportPluginSettings {
@@ -27,6 +32,10 @@ export interface ExportPluginSettings {
 	default_env_name_to_file_name: boolean;
 	last_external_folder: string;
 	template_folder: string;
+	// Typst support
+	export_format: "latex" | "typst";
+	typst_template_path: string;
+	typst_preamble_file: string;
 }
 
 export const DEFAULT_SETTINGS: ExportPluginSettings = {
@@ -43,6 +52,10 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	default_env_name_to_file_name: false,
 	last_external_folder: "",
 	template_folder: "",
+	// Typst support
+	export_format: "latex",
+	typst_template_path: "",
+	typst_preamble_file: "",
 };
 
 export const HEADING_STRUCTURE = {
@@ -53,16 +66,16 @@ export const HEADING_STRUCTURE = {
 export type HEADING_STRUCTURE = typeof HEADING_STRUCTURE;
 
 export const DEFAULT_LATEX_TEMPLATE = `
-\\documentclass{article}
-\\input{header}
+\documentclass{article}
+\input{header}
 {{PREAMBLE}}
 
-\\addbibresource{bibliography.bib}
-\\title{$title$}
-\\author{$author$}
+\addbibresource{bibliography.bib}
+\title{$title$}
+\author{$author$}
 
-\\begin{document}
-\\maketitle
+\begin{document}
+\maketitle
 
 $abstract$
 
@@ -70,11 +83,37 @@ $body$
 
 $customSections$
 
-\\printbibliography
+\printbibliography
 
 $appendix$
 
-\\end{document}
+\end{document}
+`;
+
+export const DEFAULT_TYPST_TEMPLATE = `
+#import "preamble.typ": *
+
+{{PREAMBLE}}
+
+#set document(title: "$title$", author: "$author$")
+#set page(numbering: "1")
+#set heading(numbering: "1.")
+
+#align(center)[
+  #text(17pt)[*$title$*]
+  
+  $author$
+]
+
+$abstract$
+
+$body$
+
+$customSections$
+
+$appendix$
+
+#bibliography("bibliography.bib")
 `;
 
 export type parsed_note = {

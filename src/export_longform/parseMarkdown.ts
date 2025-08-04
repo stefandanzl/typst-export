@@ -169,7 +169,11 @@ async function render_content(
 	const buffer = Buffer.alloc(PERFORMANCE_CONSTANTS.RENDER_BUFFER_SIZE);
 	let offset = 0;
 	for (const elt of content) {
-		offset = await elt.latex(buffer, offset, settings);
+		if (settings.export_format === "typst") {
+			offset = await elt.typst(buffer, offset, settings);
+		} else {
+			offset = await elt.latex(buffer, offset, settings);
+		}
 	}
 	return buffer.toString("utf8", 0, offset);
 }

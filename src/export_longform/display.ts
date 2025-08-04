@@ -174,6 +174,39 @@ In note:
 		);
 		return buffer_offset;
 	}
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	): Promise<number> {
+		let content = this.content;
+		
+		if (this.label !== undefined) {
+			// In Typst, equations are labeled with angle brackets
+			content = `${content} <${this.label}>`;
+		}
+		
+		if (this.explicit_env_name !== undefined) {
+			// Handle different math environments
+			if (["align", "align*"].includes(this.explicit_env_name)) {
+				// Typst uses $ blocks for aligned equations
+				buffer_offset += buffer.write("$ ", buffer_offset);
+				buffer_offset += buffer.write(content, buffer_offset);
+				buffer_offset += buffer.write(" $\n", buffer_offset);
+			} else {
+				// Default equation block
+				buffer_offset += buffer.write("$ ", buffer_offset);
+				buffer_offset += buffer.write(content, buffer_offset);
+				buffer_offset += buffer.write(" $\n", buffer_offset);
+			}
+		} else {
+			buffer_offset += buffer.write("$ ", buffer_offset);
+			buffer_offset += buffer.write(content, buffer_offset);
+			buffer_offset += buffer.write(" $\n", buffer_offset);
+		}
+		
+		return buffer_offset;
+	}
 }
 
 export class Paragraph implements node {
@@ -204,6 +237,18 @@ export class Paragraph implements node {
 		new_offset += buffer.write("\n", new_offset);
 		return new_offset;
 	}
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	) {
+		let new_offset = buffer_offset;
+		for (const elt of this.elements) {
+			new_offset = await elt.typst(buffer, new_offset, settings);
+		}
+		new_offset += buffer.write("\n", new_offset);
+		return new_offset;
+	}
 }
 
 export class BlankLine implements node {
@@ -223,6 +268,14 @@ export class BlankLine implements node {
 	) {
 		return buffer_offset + buffer.write("\n", buffer_offset);
 		// the other \n should be done at the end of the previous display object.
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		return buffer_offset + buffer.write("\n", buffer_offset);
 	}
 }
 export class DisplayCode implements node {
@@ -416,6 +469,30 @@ export class DisplayCode implements node {
 
 		return buffer_offset;
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst code blocks use ```language syntax like Markdown
+		if (this.language) {
+			buffer_offset += buffer.write(`\`\`\`${this.language}\n`, buffer_offset);
+		} else {
+			buffer_offset += buffer.write("```\n", buffer_offset);
+		}
+		
+		buffer_offset += buffer.write(this.code, buffer_offset);
+		buffer_offset += buffer.write("\n```", buffer_offset);
+		
+		// Add label if present
+		if (this.label) {
+			buffer_offset += buffer.write(` <${this.label}>`, buffer_offset);
+		}
+		
+		buffer_offset += buffer.write("\n", buffer_offset);
+		return buffer_offset;
+	}
 }
 
 export class Quote implements node {
@@ -444,6 +521,18 @@ export class Quote implements node {
 		return (
 			buffer_offset +
 			buffer.write("%" + this.content + "\n", buffer_offset)
+		);
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses // for comments
+		return (
+			buffer_offset +
+			buffer.write("//" + this.content + "\n", buffer_offset)
 		);
 	}
 }
@@ -497,6 +586,21 @@ export class NumberedList implements node {
 		buffer_offset += buffer.write("\\end{enumerate}\n", buffer_offset);
 		return buffer_offset;
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses numbered lists with + syntax
+		for (const e of this.content) {
+			buffer_offset += buffer.write("+ ", buffer_offset);
+			for (const f of e) {
+				buffer_offset = await f.typst(buffer, buffer_offset, settings);
+			}
+		}
+		return buffer_offset;
+	}
 }
 
 export class UnorderedList implements node {
@@ -548,6 +652,21 @@ export class UnorderedList implements node {
 		buffer_offset += buffer.write("\\end{itemize}\n", buffer_offset);
 		return buffer_offset;
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses - for unordered lists
+		for (const e of this.content) {
+			buffer_offset += buffer.write("- ", buffer_offset);
+			for (const f of e) {
+				buffer_offset = await f.typst(buffer, buffer_offset, settings);
+			}
+		}
+		return buffer_offset;
+	}
 }
 
 export class Comment implements node {
@@ -573,5 +692,17 @@ export class Comment implements node {
 		settings: ExportPluginSettings
 	) {
 		return buffer_offset;
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses // for comments
+		return (
+			buffer_offset +
+			buffer.write("//" + this.content + "\n", buffer_offset)
+		);
 	}
 }

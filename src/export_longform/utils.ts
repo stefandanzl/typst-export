@@ -140,3 +140,92 @@ export function strip_newlines(thestring: string): string {
 	}
 	return result[1];
 }
+
+
+export function escape_typst(input: string): string {
+	// Typst has different escape rules than LaTeX
+	let result = input
+		// Basic escaping for Typst special characters
+		.replace(/\\/g, "\\\\")  // Backslash needs escaping
+		.replace(/#/g, "\\#")    // Hash needs escaping in content
+		.replace(/\$/g, "\\$")   // Dollar needs escaping outside math
+		.replace(/`/g, "\\`")    // Backtick for raw strings
+		.replace(/\</g, "\\<")   // Less than
+		.replace(/\>/g, "\\>")   // Greater than
+		.replace(/\[/g, "\\[")   // Square brackets for markup
+		.replace(/\]/g, "\\]")
+		.replace(/_/g, "\\_")    // Underscore for subscript
+		.replace(/\^/g, "\\^")   // Caret for superscript
+		.replace(/\*/g, "\\*")   // Asterisk for emphasis
+		.replace(/=/g, "\\=")    // Equals for headings
+		// Convert Unicode symbols to Typst equivalents
+		.replace(/∞/g, "$infinity$")
+		.replace(/±/g, "$plus.minus$")
+		.replace(/×/g, "$times$")
+		.replace(/÷/g, "$div$")
+		.replace(/≠/g, "$!=$")
+		.replace(/≤/g, "$<=$")
+		.replace(/≥/g, "$>=$")
+		.replace(/≈/g, "$approx$")
+		.replace(/√/g, "$sqrt()$")
+		.replace(/∑/g, "$sum$")
+		.replace(/∏/g, "$product$")
+		.replace(/∫/g, "$integral$")
+		.replace(/α/g, "$alpha$")
+		.replace(/β/g, "$beta$")
+		.replace(/γ/g, "$gamma$")
+		.replace(/δ/g, "$delta$")
+		.replace(/ε/g, "$epsilon$")
+		.replace(/θ/g, "$theta$")
+		.replace(/λ/g, "$lambda$")
+		.replace(/μ/g, "$mu$")
+		.replace(/π/g, "$pi$")
+		.replace(/σ/g, "$sigma$")
+		.replace(/φ/g, "$phi$")
+		.replace(/ω/g, "$omega$")
+		.replace(/€/g, "€")  // Typst handles Unicode better
+		.replace(/£/g, "£")
+		.replace(/¥/g, "¥")
+		.replace(/¢/g, "¢")
+		.replace(/©/g, "©")
+		.replace(/®/g, "®")
+		.replace(/™/g, "™")
+		.replace(/…/g, "...")
+		.replace(/—/g, "---")
+		.replace(/–/g, "--")
+		.replace(/→/g, "$arrow.r$")
+		.replace(/←/g, "$arrow.l$")
+		.replace(/↑/g, "$arrow.t$")
+		.replace(/↓/g, "$arrow.b$")
+		.replace(/↔/g, "$arrow.l.r$")
+		.replace(/⇒/g, "$arrow.double.r$")
+		.replace(/⇐/g, "$arrow.double.l$")
+		.replace(/⇔/g, "$arrow.double.l.r$")
+		.replace(/∀/g, "$forall$")
+		.replace(/∃/g, "$exists$")
+		.replace(/∅/g, "$emptyset$")
+		.replace(/∈/g, "$in$")
+		.replace(/∉/g, "$in.not$")
+		.replace(/⊂/g, "$subset$")
+		.replace(/⊃/g, "$supset$")
+		.replace(/⊆/g, "$subset.eq$")
+		.replace(/⊇/g, "$supset.eq$")
+		.replace(/∩/g, "$sect$")
+		.replace(/∪/g, "$union$")
+		.replace(/∆/g, "$Delta$")
+		.replace(/∇/g, "$nabla$")
+		.replace(/∂/g, "$diff$")
+		.replace(/ℕ/g, "$NN$")
+		.replace(/ℤ/g, "$ZZ$")
+		.replace(/ℚ/g, "$QQ$")
+		.replace(/ℝ/g, "$RR$")
+		.replace(/ℂ/g, "$CC$")
+		.replace(/°/g, "$degree$")
+		// Handle quotes - Typst is more flexible with quotes
+		.replace(/"/g, '"')
+		.replace(/"/g, '"')
+		.replace(/'/g, "'")
+		.replace(/'/g, "'");
+
+	return result;
+}

@@ -19,6 +19,15 @@ export class ProofHeader implements node {
 		buffer_offset += buffer.write(header_string, buffer_offset);
 		return buffer_offset;
 	}
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	): Promise<number> {
+		const header_string = "\n*" + this.title + "*\n\n";
+		buffer_offset += buffer.write(header_string, buffer_offset);
+		return buffer_offset;
+	}
 }
 
 export class Header implements node {
@@ -102,6 +111,15 @@ export class Header implements node {
 		}
 		return buffer.toString("utf8", 0, buffer_offset);
 	}
+
+	async typst_title(settings: ExportPluginSettings): Promise<string> {
+		const buffer = Buffer.alloc(1000);
+		let buffer_offset = 0;
+		for (const e of this.title) {
+			buffer_offset = await e.typst(buffer, buffer_offset, settings);
+		}
+		return buffer.toString("utf8", 0, buffer_offset);
+	}
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
@@ -137,6 +155,45 @@ export class Header implements node {
 		);
 		for (const e of this.children) {
 			buffer_offset = await e.latex(buffer, buffer_offset, settings);
+		}
+		return buffer_offset;
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	): Promise<number> {
+		const header_title = await this.typst_title(settings);
+
+		// Typst uses = for headings, with more = for deeper levels
+		let header_string = "";
+		for (let i = 0; i < this.level; i++) {
+			header_string += "=";
+		}
+		header_string += " " + header_title;
+		
+		// Add label if needed
+		if (this.data && this.data.header_stack) {
+			const promises = this.data.header_stack.map(
+				async (e) => await e.typst_title(settings)
+			);
+			const label = await label_from_location(
+				this.data,
+				this.data.current_file.basename,
+				this.data.current_file,
+				settings,
+				await Promise.all(promises)
+			);
+			header_string += " <" + label + ">";
+		}
+		
+		header_string += "\n\n";
+
+		buffer_offset += buffer.write(header_string, buffer_offset);
+		
+		for (const e of this.children) {
+			buffer_offset = await e.typst(buffer, buffer_offset, settings);
 		}
 		return buffer_offset;
 	}

@@ -1,7 +1,7 @@
 import * as path from "path";
 import * as fs from "fs";
 import { TFile, FileSystemAdapter } from "obsidian";
-import { EXPORT_FILE_NAMES } from "./constants";
+import { getExportFileNames } from "./constants";
 
 /**
  * Utility class for common file operations used in export functionality
@@ -52,20 +52,21 @@ export class FileOperations {
 	/**
 	 * Creates standard export paths for a given base folder and file
 	 */
-	static createExportPaths(baseFolderPath: string, activeFile: TFile) {
+	static createExportPaths(baseFolderPath: string, activeFile: TFile, exportFormat: "latex" | "typst" = "latex") {
 		const outputFolderName = this.generateSafeFilename(activeFile.basename);
 		const outputFolderPath = path.join(baseFolderPath, outputFolderName);
-		const outputFileName = EXPORT_FILE_NAMES.OUTPUT_FILENAME;
+		const fileNames = getExportFileNames(exportFormat);
+		const outputFileName = fileNames.OUTPUT_FILENAME;
 		const outputFilePath = path.join(outputFolderPath, outputFileName);
 
 		return {
 			outputFolderPath,
 			outputFileName,
 			outputFilePath,
-			headerPath: path.join(outputFolderPath, EXPORT_FILE_NAMES.HEADER),
-			preamblePath: path.join(outputFolderPath, EXPORT_FILE_NAMES.PREAMBLE),
-			bibPath: path.join(outputFolderPath, EXPORT_FILE_NAMES.BIBLIOGRAPHY),
-			attachmentsPath: path.join(outputFolderPath, EXPORT_FILE_NAMES.ATTACHMENTS_FOLDER)
+			headerPath: path.join(outputFolderPath, fileNames.HEADER),
+			preamblePath: path.join(outputFolderPath, fileNames.PREAMBLE),
+			bibPath: path.join(outputFolderPath, fileNames.BIBLIOGRAPHY),
+			attachmentsPath: path.join(outputFolderPath, fileNames.ATTACHMENTS_FOLDER)
 		};
 	}
 

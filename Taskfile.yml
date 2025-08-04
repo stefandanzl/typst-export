@@ -22,8 +22,8 @@ tasks:
       - task: copy
   copy:
     cmds:
-      - cp main.js "{{.DIR_PLUGIN}}/main.js"
-      - cp manifest.json "{{.DIR_PLUGIN}}/manifest.json"
+      - powershell -c "Copy-Item main.js '{{.DIR_PLUGIN}}/main.js'"
+      - powershell -c "Copy-Item manifest.json '{{.DIR_PLUGIN}}/manifest.json'"
 
 
   build:

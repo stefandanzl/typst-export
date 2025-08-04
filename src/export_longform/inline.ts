@@ -1,7 +1,7 @@
 import { node, metadata_for_unroll, ExportPluginSettings } from "./interfaces";
 import { explicit_label } from "./labels";
 import { format_label } from "./labels";
-import { escape_latex } from "./utils";
+import { escape_latex, escape_typst } from "./utils";
 
 export function split_inline<ClassObj extends node>(
 	inline_arr: node[],
@@ -75,6 +75,21 @@ export class ExplicitRef implements node {
 			)
 		);
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses @label for references
+		return (
+			buffer_offset +
+			buffer.write(
+				"@" + format_label(this.label),
+				buffer_offset,
+			)
+		);
+	}
 }
 
 export class Text implements node {
@@ -91,6 +106,14 @@ export class Text implements node {
 		settings: ExportPluginSettings,
 	) {
 		return buffer_offset + buffer.write(escape_latex(this.content), buffer_offset);
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		return buffer_offset + buffer.write(escape_typst(this.content), buffer_offset);
 	}
 }
 
@@ -128,6 +151,18 @@ export class Emphasis implements node {
 			buffer.write("\\emph{" + this.content + "}", buffer_offset)
 		);
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses _text_ for emphasis (italics)
+		return (
+			buffer_offset +
+			buffer.write("_" + this.content + "_", buffer_offset)
+		);
+	}
 }
 
 export class DoubleQuotes implements node {
@@ -158,6 +193,18 @@ export class DoubleQuotes implements node {
 			buffer.write("``" + this.content + '"', buffer_offset)
 		);
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst handles quotes naturally
+		return (
+			buffer_offset +
+			buffer.write('"' + this.content + '"', buffer_offset)
+		);
+	}
 }
 
 export class SingleQuotes implements node {
@@ -186,6 +233,18 @@ export class SingleQuotes implements node {
 		return (
 			buffer_offset +
 			buffer.write("`" + this.content + "'", buffer_offset)
+		);
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst handles single quotes naturally
+		return (
+			buffer_offset +
+			buffer.write("'" + this.content + "'", buffer_offset)
 		);
 	}
 }
@@ -225,6 +284,18 @@ export class Strong implements node {
 			buffer.write("\\textbf{" + this.content + "}", buffer_offset)
 		);
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses *text* for bold
+		return (
+			buffer_offset +
+			buffer.write("*" + this.content + "*", buffer_offset)
+		);
+	}
 }
 
 export class InlineMath implements node {
@@ -251,6 +322,18 @@ export class InlineMath implements node {
 		buffer_offset: number,
 		settings: ExportPluginSettings,
 	) {
+		return (
+			buffer_offset +
+			buffer.write("$" + this.content + "$", buffer_offset)
+		);
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses $math$ like LaTeX for inline math
 		return (
 			buffer_offset +
 			buffer.write("$" + this.content + "$", buffer_offset)
@@ -286,6 +369,18 @@ export class InlineCode implements node {
 				"\\texttt{" + this.code.replace("_", "_") + "}",
 				buffer_offset,
 			)
+		);
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst uses backticks for inline code like Markdown
+		return (
+			buffer_offset +
+			buffer.write("`" + this.code + "`", buffer_offset)
 		);
 	}
 }

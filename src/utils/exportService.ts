@@ -2,7 +2,7 @@ import { TFile, App, Notice, FileSystemAdapter } from "obsidian";
 import { FileOperations } from "./fileOperations";
 import { FileManagementService } from "./fileManagementService";
 import { ExportMessageBuilder } from "./messageBuilder";
-import { EXPORT_MESSAGES, EXPORT_FILE_NAMES } from "./constants";
+import { EXPORT_MESSAGES, getExportFileNames } from "./constants";
 import { ExportConfig, ExportResult, ExportPaths } from "./interfaces";
 import { 
 	ExportPluginSettings, 
@@ -10,7 +10,7 @@ import {
 	write_with_template, 
 	parsed_longform 
 } from "../export_longform";
-import { DEFAULT_LATEX_TEMPLATE } from "../export_longform/interfaces";
+import { DEFAULT_LATEX_TEMPLATE, DEFAULT_TYPST_TEMPLATE } from "../export_longform/interfaces";
 
 /**
  * Service for handling export operations
@@ -40,7 +40,7 @@ export class ExportService {
 				};
 			}
 
-			const exportPaths = FileOperations.createExportPaths(outputPath, activeFile);
+			const exportPaths = FileOperations.createExportPaths(outputPath, activeFile, settings.export_format);
 
 			// Parse the content
 			const parsedContents = await parse_longform(
@@ -107,7 +107,7 @@ export class ExportService {
 
 			// Determine output folder
 			const outputFolder = this.determineOutputFolder(activeFile, settings);
-			const exportPaths = this.createVaultExportPaths(outputFolder, activeFile);
+			const exportPaths = this.createVaultExportPaths(outputFolder, activeFile, settings);
 
 			// Parse the content
 			const parsedContents = await parse_longform(
@@ -281,8 +281,9 @@ export class ExportService {
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings
 	): Promise<void> {
-		const templateFile = this.app.vault.getFileByPath(settings.template_path);
-		let templateContent = DEFAULT_LATEX_TEMPLATE;
+		const templatePath = settings.export_format === "typst" ? settings.typst_template_path : settings.template_path;
+		const templateFile = this.app.vault.getFileByPath(templatePath);
+		let templateContent = settings.export_format === "typst" ? DEFAULT_TYPST_TEMPLATE : DEFAULT_LATEX_TEMPLATE;
 		
 		if (templateFile) {
 			templateContent = await this.app.vault.read(templateFile);
@@ -306,8 +307,9 @@ export class ExportService {
 		outputFile: TFile,
 		settings: ExportPluginSettings
 	): Promise<void> {
-		const templateFile = this.app.vault.getFileByPath(settings.template_path);
-		let templateContent = DEFAULT_LATEX_TEMPLATE;
+		const templatePath = settings.export_format === "typst" ? settings.typst_template_path : settings.template_path;
+		const templateFile = this.app.vault.getFileByPath(templatePath);
+		let templateContent = settings.export_format === "typst" ? DEFAULT_TYPST_TEMPLATE : DEFAULT_LATEX_TEMPLATE;
 		
 		if (templateFile) {
 			templateContent = await this.app.vault.read(templateFile);
@@ -339,18 +341,19 @@ export class ExportService {
 	/**
 	 * Creates export paths for vault export
 	 */
-	private createVaultExportPaths(outputFolder: any, activeFile: TFile): ExportPaths {
+	private createVaultExportPaths(outputFolder: any, activeFile: TFile, settings: ExportPluginSettings): ExportPaths {
 		const outputFolderName = FileOperations.generateSafeFilename(activeFile.basename);
 		const outputFolderPath = `${outputFolder.path}/${outputFolderName}`.replace(/^\/+/, "");
+		const fileNames = getExportFileNames(settings.export_format);
 		
 		return {
 			outputFolderPath,
-			outputFileName: EXPORT_FILE_NAMES.OUTPUT_FILENAME,
-			outputFilePath: `${outputFolderPath}/${EXPORT_FILE_NAMES.OUTPUT_FILENAME}`,
-			headerPath: `${outputFolderPath}/${EXPORT_FILE_NAMES.HEADER}`,
-			preamblePath: `${outputFolderPath}/${EXPORT_FILE_NAMES.PREAMBLE}`,
-			bibPath: `${outputFolderPath}/${EXPORT_FILE_NAMES.BIBLIOGRAPHY}`,
-			attachmentsPath: `${outputFolderPath}/${EXPORT_FILE_NAMES.ATTACHMENTS_FOLDER}`
+			outputFileName: fileNames.OUTPUT_FILENAME,
+			outputFilePath: `${outputFolderPath}/${fileNames.OUTPUT_FILENAME}`,
+			headerPath: `${outputFolderPath}/${fileNames.HEADER}`,
+			preamblePath: `${outputFolderPath}/${fileNames.PREAMBLE}`,
+			bibPath: `${outputFolderPath}/${fileNames.BIBLIOGRAPHY}`,
+			attachmentsPath: `${outputFolderPath}/${fileNames.ATTACHMENTS_FOLDER}`
 		};
 	}
 

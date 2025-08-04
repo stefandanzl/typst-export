@@ -4,12 +4,26 @@
 
 // File names and paths
 export const EXPORT_FILE_NAMES = {
-	OUTPUT_FILENAME: "mainmd.tex",
-	PREAMBLE: "preamble.sty",
-	HEADER: "header.tex",
-	BIBLIOGRAPHY: "bibliography.bib",
-	ATTACHMENTS_FOLDER: "Attachments"
+	LATEX: {
+		OUTPUT_FILENAME: "mainmd.tex",
+		PREAMBLE: "preamble.sty",
+		HEADER: "header.tex",
+		BIBLIOGRAPHY: "bibliography.bib",
+		ATTACHMENTS_FOLDER: "Attachments"
+	},
+	TYPST: {
+		OUTPUT_FILENAME: "mainmd.typ",
+		PREAMBLE: "preamble.typ",
+		HEADER: "header.typ",
+		BIBLIOGRAPHY: "bibliography.bib",
+		ATTACHMENTS_FOLDER: "Attachments"
+	}
 } as const;
+
+// Helper function to get file names based on export format
+export function getExportFileNames(format: "latex" | "typst") {
+	return EXPORT_FILE_NAMES[format.toUpperCase() as keyof typeof EXPORT_FILE_NAMES];
+}
 
 // Buffer and performance settings
 export const PERFORMANCE_CONSTANTS = {

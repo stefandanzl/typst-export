@@ -175,6 +175,19 @@ export class EmbedWikilink implements node {
 		);
 		return 0;
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		console.error(
+			"Embed wikilink " +
+				this.content +
+				"should have been unrolled to something else"
+		);
+		return 0;
+	}
 }
 
 export class Plot implements node {
@@ -226,6 +239,51 @@ export class Plot implements node {
 			buffer_offset
 		);
 		buffer_offset += buffer.write("\\end{figure}\n", buffer_offset);
+		return buffer_offset;
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst figure syntax
+		buffer_offset += buffer.write("#figure(\n", buffer_offset);
+		buffer_offset += buffer.write(
+			'  image("' + "Attachments/" + this.image.name + '"),\n',
+			buffer_offset
+		);
+		
+		let caption_text: string;
+		if (this.caption === undefined) {
+			caption_text = "";
+			const warning =
+				"WARNING: Figure created from '" +
+				this.image.name +
+				"' has no caption.\n" +
+				"You may want to add one in the display part of the wikilink: for example,\n" +
+				"![[plot.png|my caption]]\n" +
+				"In note:\n" +
+				this.file_of_origin.path;
+			notice_and_warn(warning);
+		} else {
+			caption_text = this.caption;
+		}
+		
+		buffer_offset += buffer.write(
+			'  caption: [' + caption_text + '],\n',
+			buffer_offset
+		);
+		
+		if (this.label) {
+			buffer_offset += buffer.write(
+				') <' + this.label + '>\n',
+				buffer_offset
+			);
+		} else {
+			buffer_offset += buffer.write(")\n", buffer_offset);
+		}
+		
 		return buffer_offset;
 	}
 }
@@ -375,6 +433,71 @@ export class Table implements node {
 
 		return buffer_offset;
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst table syntax
+		buffer_offset += buffer.write("#figure(\n", buffer_offset);
+		buffer_offset += buffer.write("  table(\n", buffer_offset);
+		buffer_offset += buffer.write(`    columns: ${this.headers.length},\n`, buffer_offset);
+		buffer_offset += buffer.write("    stroke: 0.5pt,\n", buffer_offset);
+		buffer_offset += buffer.write("    fill: (x, y) => if y == 0 { gray.lighten(80%) },\n", buffer_offset);
+		
+		// Write headers
+		for (let i = 0; i < this.headers.length; i++) {
+			buffer_offset += buffer.write(`    [*${this.headers[i]}*]`, buffer_offset);
+			if (i < this.headers.length - 1) {
+				buffer_offset += buffer.write(",", buffer_offset);
+			}
+			buffer_offset += buffer.write("\n", buffer_offset);
+		}
+		
+		// Write data rows
+		for (const row of this.rows) {
+			buffer_offset += buffer.write(",\n", buffer_offset);
+			for (let i = 0; i < row.length; i++) {
+				buffer_offset += buffer.write(`    [${row[i]}]`, buffer_offset);
+				if (i < row.length - 1) {
+					buffer_offset += buffer.write(",", buffer_offset);
+				}
+				buffer_offset += buffer.write("\n", buffer_offset);
+			}
+		}
+		
+		buffer_offset += buffer.write("  ),\n", buffer_offset);
+		
+		// Handle caption
+		let caption_text: string;
+		if (this.caption === undefined) {
+			caption_text = "";
+			const warning =
+				"WARNING: Table has no caption.\n" +
+				"You may want to add one when creating the table.\n" +
+				"In note:\n";
+			notice_and_warn(warning);
+		} else {
+			caption_text = this.caption;
+		}
+		
+		buffer_offset += buffer.write(
+			'  caption: [' + caption_text + '],\n',
+			buffer_offset
+		);
+		
+		if (this.label) {
+			buffer_offset += buffer.write(
+				') <' + this.label + '>\n',
+				buffer_offset
+			);
+		} else {
+			buffer_offset += buffer.write(")\n", buffer_offset);
+		}
+		
+		return buffer_offset;
+	}
 }
 
 export class Wikilink implements node {
@@ -424,6 +547,23 @@ export class Wikilink implements node {
 		buffer_offset: number,
 		settings: ExportPluginSettings
 	) {
+		if (this.header === undefined) {
+			this.header = "";
+		}
+		return (
+			buffer_offset +
+			buffer.write(
+				"[[" + this.content + "#" + this.header + "]]",
+				buffer_offset
+			)
+		);
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
 		if (this.header === undefined) {
 			this.header = "";
 		}
@@ -555,6 +695,73 @@ export class Environment implements node {
 		);
 		return buffer_offset;
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst doesn't have built-in theorem environments, so we'll use a custom approach
+		let env_title = "";
+		
+		if (this.type !== "remark" && settings.display_env_titles) {
+			if (this.display_title !== undefined) {
+				if (this.display_title !== "") {
+					env_title = this.display_title;
+				}
+			} else if (
+				this.embedded_file_yaml !== undefined &&
+				this.embedded_file_yaml.env_title !== undefined
+			) {
+				if (
+					this.embedded_file_yaml.env_title !== "" &&
+					this.embedded_file_yaml.env_title !== null
+				) {
+					env_title = this.embedded_file_yaml.env_title;
+				}
+			} else if (
+				settings.default_env_name_to_file_name &&
+				this.address_of_origin !== undefined
+			) {
+				env_title = this.address_of_origin;
+			}
+		}
+		
+		// Start environment block
+		buffer_offset += buffer.write("#block(\n", buffer_offset);
+		buffer_offset += buffer.write("  fill: rgb(\"#f0f0f0\"),\n", buffer_offset);
+		buffer_offset += buffer.write("  inset: 8pt,\n", buffer_offset);
+		buffer_offset += buffer.write("  radius: 4pt,\n", buffer_offset);
+		buffer_offset += buffer.write("  width: 100%,\n", buffer_offset);
+		buffer_offset += buffer.write("  [\n", buffer_offset);
+		
+		// Add environment header
+		buffer_offset += buffer.write(
+			`    *${this.type.charAt(0).toUpperCase() + this.type.slice(1)}*`,
+			buffer_offset
+		);
+		
+		if (env_title) {
+			buffer_offset += buffer.write(` *(${env_title})*`, buffer_offset);
+		}
+		
+		// Add label if present
+		if (this.label !== undefined && this.type !== "proof") {
+			buffer_offset += buffer.write(` <${format_label(this.label)}>`, buffer_offset);
+		}
+		
+		buffer_offset += buffer.write("\n\n", buffer_offset);
+		
+		// Add content
+		for (const e of this.children) {
+			buffer_offset = await e.typst(buffer, buffer_offset, settings);
+		}
+		
+		buffer_offset += buffer.write("  ]\n", buffer_offset);
+		buffer_offset += buffer.write(")\n", buffer_offset);
+		
+		return buffer_offset;
+	}
 }
 
 export class Hyperlink implements node {
@@ -585,6 +792,21 @@ export class Hyperlink implements node {
 			buffer_offset +
 			buffer.write(
 				`\\href{${this.address}}{${this.label}}`,
+				buffer_offset
+			)
+		);
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst link syntax: #link("url")[text]
+		return (
+			buffer_offset +
+			buffer.write(
+				`#link("${this.address}")[${this.label}]`,
 				buffer_offset
 			)
 		);
@@ -721,6 +943,103 @@ export class UnrolledWikilink implements node {
 			);
 		}
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		const hasBeenEmbedded =
+			this.unroll_data.parsed_file_bundle[this.address] !== undefined;
+		const file = this.unroll_data.find_file(this.address);
+		if (!file) {
+			notice_and_warn(
+				"Wikilink with address '" +
+					this.address +
+					"' points to no file. Wikilink is in file: '" +
+					this.unroll_data.current_file.path +
+					"'"
+			);
+			return (
+				buffer_offset +
+				buffer.write(
+					"FAILED TO RESOLVE:[[" + this.address + "]]",
+					buffer_offset
+				)
+			);
+		}
+		if (
+			!hasBeenEmbedded &&
+			!address_is_image_file(this.address) &&
+			(!this.header || this.header.toLowerCase() === "statement")
+		) {
+			const file_contents = await this.unroll_data.read_tfile(file);
+			const [yaml] = parse_yaml_header(file_contents);
+			const bib_key_match = yaml.source?.match(
+				/@([a-zA-Z0-9\-_]+)|\[\[@([a-zA-Z0-9\-_]+)\]\]/
+			);
+			const bib_key = bib_key_match
+				? bib_key_match[1] || bib_key_match[2]
+				: undefined;
+			const published_result_name = yaml.published_result_name;
+			if (bib_key && typeof published_result_name === "string") {
+				const citation = new Citation(
+					bib_key,
+					"std",
+					published_result_name || this.displayed
+				);
+				return citation.typst(buffer, buffer_offset, settings);
+			} else {
+				notice_and_warn(
+					"address of reference '" +
+						this.address +
+						"' is referenced but was not embedded.\n" +
+						"In note:\n" +
+						this.unroll_data.current_file.path
+				);
+				return (
+					buffer_offset +
+					buffer.write(
+						"FAILED TO RESOLVE:[[" + this.address + "]]",
+						buffer_offset
+					)
+				);
+			}
+		}
+		const label = await label_from_location(
+			this.unroll_data,
+			this.address,
+			this.unroll_data.current_file,
+			settings,
+			this.header
+		);
+		if (this.displayed !== undefined) {
+			// Typst link with custom text: #link(label("ref"))[custom text]  
+			return (
+				buffer_offset +
+				buffer.write(
+					"#link(label(\"" + label + "\"))[" + this.displayed + "]",
+					buffer_offset
+				)
+			);
+		}
+		if (this.header?.toLowerCase().trim() !== "proof") {
+			// Standard reference: @ref
+			return (
+				buffer_offset +
+				buffer.write("@" + label, buffer_offset)
+			);
+		} else {
+			// Proof reference with link
+			return (
+				buffer_offset +
+				buffer.write(
+					"#link(label(\"" + label + "\"))[the proof]",
+					buffer_offset
+				)
+			);
+		}
+	}
 	async unroll(): Promise<node[]> {
 		return [this];
 	}
@@ -731,7 +1050,7 @@ export class PandocCitation {
 	type: string | undefined;
 	result: string | undefined;
 	static get_regexp(): RegExp {
-		return /(?:(?:@([^,.;\[\] ]+))|(?:\[(-)?@([^,;.\[\]\- ]+)(?:, ?([^\]\[]*))?\]))(?:\[([^\]@]*)\])?/g;
+		return /(?:(?:@([^,.;\[\] ]+))|(?:\[(-)?@([^,;.\[\]\- ]+)(?:, ?([^\]\[]*))??\]))(?:\[([^\]@]*)\])?/g;
 	}
 	constructor(id: string, type?: string, suffix?: string) {
 		this.id = id;
@@ -783,6 +1102,13 @@ export class PandocCitation {
 		settings: ExportPluginSettings
 	): Promise<number> {
 		throw Error("Latex on this PandocCitation should not be called.");
+	}
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	): Promise<number> {
+		throw Error("Typst on this PandocCitation should not be called.");
 	}
 }
 
@@ -866,6 +1192,37 @@ export class Citation implements node {
 		citestring += "{" + this.id + "}";
 		return buffer_offset + buffer.write(citestring, buffer_offset);
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst bibliography citations use @key format
+		let citestring = "@" + this.id;
+		
+		// Handle different citation types with Typst cite function
+		if (this.type === "parenthesis") {
+			citestring = "#cite(" + this.id + ")";
+		} else if (this.type === "year") {
+			citestring = "#cite(" + this.id + ", form: \"year\")";
+		} else if (this.type === "txt") {
+			citestring = "#cite(" + this.id + ", form: \"prose\")";
+		}
+		
+		// Add suffix if present
+		if (this.result !== undefined) {
+			if (this.type === "parenthesis" || this.type === "year" || this.type === "txt") {
+				// Use the supplement parameter for cite function
+				citestring = citestring.replace(")", ", supplement: [" + this.result + "])");
+			} else {
+				// For simple @key citations, just append the text
+				citestring += " " + this.result;
+			}
+		}
+		
+		return buffer_offset + buffer.write(citestring, buffer_offset);
+	}
 }
 
 export class MultiCitation implements node {
@@ -896,6 +1253,19 @@ export class MultiCitation implements node {
 		}
 		buffer_offset += buffer.write(
 			this.ids[this.ids.length - 1] + "}",
+			buffer_offset
+		);
+		return buffer_offset;
+	}
+
+	async typst(buffer: Buffer, buffer_offset: number): Promise<number> {
+		// Typst multiple citations: #cite(<key1>, <key2>, <key3>)
+		buffer_offset += buffer.write("#cite(", buffer_offset);
+		for (const id of this.ids.slice(0, -1)) {
+			buffer_offset += buffer.write("<" + id + ">, ", buffer_offset);
+		}
+		buffer_offset += buffer.write(
+			"<" + this.ids[this.ids.length - 1] + ">)",
 			buffer_offset
 		);
 		return buffer_offset;
@@ -1001,13 +1371,44 @@ export class AliasCitation implements node {
 		
 		return buffer_offset + buffer.write(citestring, buffer_offset);
 	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings,
+	): Promise<number> {
+		// Typst bibliography citations use @key format
+		let citestring = "@" + this.id;
+		
+		// Handle different citation types with Typst cite function
+		if (this.type === "parenthesis") {
+			citestring = "#cite(<" + this.id + ">)";
+		} else if (this.type === "year") {
+			citestring = "#cite(<" + this.id + ">, form: \"year\")";
+		} else if (this.type === "txt") {
+			citestring = "#cite(<" + this.id + ">, form: \"prose\")";
+		}
+		
+		// Add suffix if present
+		if (this.result !== undefined) {
+			if (this.type === "parenthesis" || this.type === "year" || this.type === "txt") {
+				// Use the supplement parameter for cite function
+				citestring = citestring.replace(">)", ">, supplement: [" + this.result + "])");
+			} else {
+				// For simple @key citations, just append the text
+				citestring += " " + this.result;
+			}
+		}
+		
+		return buffer_offset + buffer.write(citestring, buffer_offset);
+	}
 }
 
 export class PandocMultiCitation implements node {
 	ids: string[];
 	type: string;
 	static get_regexp(): RegExp {
-		return /(?<!\[)(\[)?@([a-zA-Z0-9\-_]+);[ \t]*(?:@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?\]?/g;
+		return /(?<!\[)([\[])?@([a-zA-Z0-9\-_]+);[ \t]*(?:@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?\]?/g;
 	}
 	static build_from_match(args: RegExpMatchArray): PandocMultiCitation {
 		return new PandocMultiCitation(args);
@@ -1042,6 +1443,29 @@ export class PandocMultiCitation implements node {
 			this.ids[this.ids.length - 1] + "}",
 			buffer_offset
 		);
+		return buffer_offset;
+	}
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	): Promise<number> {
+		// Typst multi-citation support
+		if (this.type === "parenthesis") {
+			buffer_offset += buffer.write("#cite(", buffer_offset);
+			for (const id of this.ids.slice(0, -1)) {
+				buffer_offset += buffer.write(id + ", ", buffer_offset);
+			}
+			buffer_offset += buffer.write(this.ids[this.ids.length - 1] + ")", buffer_offset);
+		} else {
+			// Multiple @key citations
+			for (let i = 0; i < this.ids.length; i++) {
+				buffer_offset += buffer.write("@" + this.ids[i], buffer_offset);
+				if (i < this.ids.length - 1) {
+					buffer_offset += buffer.write(" ", buffer_offset);
+				}
+			}
+		}
 		return buffer_offset;
 	}
 }
