@@ -63,21 +63,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl)
-			.setName("Template folder")
-			.setDesc(
-				"Relative vault path to a folder containing additional template files (e.g., style files, images, etc.). The entire folder contents will be copied to the export directory."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/template_folder/")
-					.setValue(this.plugin.settings.template_folder)
-					.onChange(async (value) => {
-						this.plugin.settings.template_folder =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					})
-			);
+
 
 		new Setting(containerEl)
 			.setName("Header names for template sections")
@@ -205,6 +191,22 @@ export class LatexExportSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("LaTeX template folder")
+			.setDesc(
+				"Relative vault path to a folder containing LaTeX template files (e.g., .sty files, images, etc.). The entire folder contents will be copied to the export directory."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/latex_template_folder/")
+					.setValue(this.plugin.settings.template_folder)
+					.onChange(async (value) => {
+						this.plugin.settings.template_folder =
+							normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("LaTeX preamble file")
 			.setDesc(
 				"Vault relative path to a preamble.sty file in your vault. It will be included in the export. Example: 'preamble.sty' or 'styles/my-preamble.sty'. Leave empty if you don't have a preamble file."
@@ -263,6 +265,22 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.typst_template_path =
 							normalizePath(value || "");
+						await this.plugin.saveSettings();
+					})
+			);
+			
+		new Setting(containerEl)
+			.setName("Typst template folder")
+			.setDesc(
+				"Relative vault path to a folder containing Typst template files (e.g., .typ files, images, etc.). The entire folder contents will be copied to the export directory."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/typst_template_folder/")
+					.setValue(this.plugin.settings.typst_template_folder)
+					.onChange(async (value) => {
+						this.plugin.settings.typst_template_folder =
+							normalizePath(value);
 						await this.plugin.saveSettings();
 					})
 			);

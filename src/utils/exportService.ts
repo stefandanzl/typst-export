@@ -57,8 +57,13 @@ export class ExportService {
 			const messageBuilder = new ExportMessageBuilder(EXPORT_MESSAGES.SUCCESS_EXTERNAL_BASE);
 
 			// 1. Handle template folder first (foundation)
+			// Use appropriate template folder based on export format
+			const templateFolder = settings.export_format === "typst" 
+				? settings.typst_template_folder 
+				: settings.template_folder;
+			
 			await this.fileManager.handleTemplateFolderExternal(
-				settings.template_folder,
+				templateFolder,
 				exportPaths.outputFolderPath,
 				messageBuilder
 			);
@@ -124,8 +129,13 @@ export class ExportService {
 			const messageBuilder = new ExportMessageBuilder(EXPORT_MESSAGES.SUCCESS_BASE);
 
 			// 1. Handle template folder first (foundation)
+			// Use appropriate template folder based on export format
+			const templateFolder = settings.export_format === "typst" 
+				? settings.typst_template_folder 
+				: settings.template_folder;
+			
 			await this.fileManager.handleTemplateFolderVault(
-				settings.template_folder,
+				templateFolder,
 				exportPaths.outputFolderPath,
 				messageBuilder
 			);

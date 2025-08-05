@@ -35,6 +35,7 @@ export interface ExportPluginSettings {
 	// Typst support
 	export_format: "latex" | "typst";
 	typst_template_path: string;
+	typst_template_folder: string;
 	typst_preamble_file: string;
 }
 
@@ -55,6 +56,7 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	// Typst support
 	export_format: "latex",
 	typst_template_path: "",
+	typst_template_folder: "",
 	typst_preamble_file: "",
 };
 
