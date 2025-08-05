@@ -260,14 +260,31 @@ export class FileManagementService {
 				templateFolderPath,
 				outputFolderPath
 			);
-			messageBuilder.addCustomMessage("- Copying template folder contents (with overwrite)");
+			messageBuilder.addCustomMessage("- Template folder copied successfully (files overwritten as needed)");
 		} catch (error) {
-			console.warn("Failed to copy template folder:", error);
+			console.error("Failed to copy template folder:", error);
 			// Provide more specific error information
-			if (error instanceof Error && error.message.includes('EEXIST')) {
-				messageBuilder.addCustomMessage("- Template folder: some files couldn't be overwritten (check permissions)");
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			if (errorMessage.includes('EEXIST')) {
+				messageBuilder.addCustomMessage("- Template folder: retrying with forced overwrite...");
+				// Try again with a more aggressive approach - this should now work with our improved copy method
+				try {
+					FileOperations.copyDirectoryToExternal(
+						this.vaultAdapter,
+						templateFolderPath,
+						outputFolderPath
+					);
+					messageBuilder.addCustomMessage("- Template folder copied successfully on retry");
+				} catch (retryError) {
+					messageBuilder.addCustomMessage("- Template folder: failed to copy some files (check file permissions)");
+					throw new Error(`Failed to copy template folder: ${retryError}`);
+				}
+			} else if (errorMessage.includes('ENOENT')) {
+				messageBuilder.addCustomMessage("- Template folder not found at specified path");
+				throw new Error(`Template folder not found: ${templateFolderPath}`);
 			} else {
-				messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
+				messageBuilder.addCustomMessage("- Template folder copy failed with unexpected error");
+				throw error;
 			}
 		}
 	}
@@ -290,9 +307,9 @@ export class FileManagementService {
 				templateFolderPath,
 				outputFolderPath
 			);
-			messageBuilder.addCustomMessage("- Copying template folder contents (with overwrite)");
+			messageBuilder.addCustomMessage("- Template folder copied successfully (files overwritten as needed)");
 		} catch (error) {
-			console.warn("Failed to copy template folder:", error);
+			console.error("Failed to copy template folder:", error);
 			// Provide more specific error information  
 			if (error instanceof Error && error.message.includes('EEXIST')) {
 				messageBuilder.addCustomMessage("- Template folder: some files couldn't be overwritten (check permissions)");

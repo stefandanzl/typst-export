@@ -1,5 +1,5 @@
-import * as path from "path";
 import * as fs from "fs";
+import * as path from "path";
 import { TFile, FileSystemAdapter } from "obsidian";
 import { getExportFileNames } from "./constants";
 
@@ -96,24 +96,50 @@ export class FileOperations {
 	 * Helper method for recursive directory copying (external)
 	 */
 	private static copyDirectoryRecursive(sourceDir: string, destDir: string): void {
-		const items = fs.readdirSync(sourceDir, { withFileTypes: true });
+	const items = fs.readdirSync(sourceDir, { withFileTypes: true });
 
-		for (const item of items) {
-			const sourceItemPath = path.join(sourceDir, item.name);
-			const destItemPath = path.join(destDir, item.name);
+	for (const item of items) {
+		const sourceItemPath = path.join(sourceDir, item.name);
+		const destItemPath = path.join(destDir, item.name);
 
-			if (item.isDirectory()) {
-				this.ensureDirectoryExists(destItemPath);
-				this.copyDirectoryRecursive(sourceItemPath, destItemPath);
-			} else if (item.isFile()) {
-				// Always overwrite: remove existing file first if it exists
+		if (item.isDirectory()) {
+			this.ensureDirectoryExists(destItemPath);
+			this.copyDirectoryRecursive(sourceItemPath, destItemPath);
+		} else if (item.isFile()) {
+			try {
+				// First, ensure the destination directory exists
+				this.ensureDirectoryExists(path.dirname(destItemPath));
+				
+				// Force overwrite by deleting existing file first
 				if (fs.existsSync(destItemPath)) {
-					fs.unlinkSync(destItemPath);
+					try {
+						fs.unlinkSync(destItemPath);
+					} catch (unlinkError) {
+						console.warn(`Failed to delete existing file ${destItemPath}, trying to overwrite:`, unlinkError);
+					}
 				}
+				
+				// Copy the file (this should overwrite if file still exists)
 				fs.copyFileSync(sourceItemPath, destItemPath);
+			} catch (error: any) {
+				if (error.code === 'EEXIST') {
+					console.warn(`File exists error for ${destItemPath}, trying alternative copy method`);
+					// Alternative: read and write the file manually
+					try {
+						const fileContent = fs.readFileSync(sourceItemPath);
+						fs.writeFileSync(destItemPath, fileContent);
+					} catch (fallbackError) {
+						console.error(`All copy attempts failed for ${destItemPath}:`, fallbackError);
+						throw new Error(`Failed to copy ${sourceItemPath} to ${destItemPath}: ${fallbackError}`);
+					}
+				} else {
+					console.error(`Copy error for ${destItemPath}:`, error);
+					throw error;
+				}
 			}
 		}
 	}
+}
 
 	/**
 	 * Copies a directory within the vault recursively
@@ -141,26 +167,45 @@ export class FileOperations {
 	 * Helper method for copying directory contents within vault
 	 */
 	private static async copyDirectoryContentsWithinVault(
-		vault: any,
-		sourceFolder: any,
-		destinationPath: string
-	): Promise<void> {
-		for (const item of sourceFolder.children) {
-			const destItemPath = path.join(destinationPath, item.name);
+	vault: any,
+	sourceFolder: any,
+	destinationPath: string
+): Promise<void> {
+	for (const item of sourceFolder.children) {
+		// Use forward slashes for Obsidian paths, even on Windows
+		const destItemPath = destinationPath + "/" + item.name;
 
-			if (item.children) {
-				// It's a directory, recursively copy
-				await vault.createFolder(destItemPath).catch(() => {});
-				await this.copyDirectoryContentsWithinVault(vault, item, destItemPath);
-			} else {
-				// It's a file, copy it
+		if (item.children) {
+			// It's a directory, recursively copy
+			await vault.createFolder(destItemPath).catch(() => {});
+			await this.copyDirectoryContentsWithinVault(vault, item, destItemPath);
+		} else {
+			// It's a file, copy it
+			try {
 				const existingFile = vault.getFileByPath(destItemPath);
 				if (existingFile) {
-					// Always overwrite
+					// Always overwrite - delete first
 					await vault.delete(existingFile);
+					console.log(`Deleted existing file: ${destItemPath}`);
 				}
 				await vault.copy(item, destItemPath);
+				console.log(`Copied file: ${item.path} -> ${destItemPath}`);
+			} catch (copyError) {
+				console.error(`Failed to copy file ${item.path} to ${destItemPath}:`, copyError);
+				// Try alternative approach: read content and create new file
+				try {
+					const content = await vault.read(item);
+					if (vault.getFileByPath(destItemPath)) {
+						await vault.delete(vault.getFileByPath(destItemPath));
+					}
+					await vault.create(destItemPath, content);
+					console.log(`Alternative copy successful: ${destItemPath}`);
+				} catch (alternativeError) {
+					console.error(`All copy methods failed for ${destItemPath}:`, alternativeError);
+					throw new Error(`Failed to copy ${item.path}: ${alternativeError}`);
+				}
 			}
 		}
 	}
+}
 }

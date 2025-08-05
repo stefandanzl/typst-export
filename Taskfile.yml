@@ -1,76 +1,71 @@
 # https://taskfile.dev
 
-version: '3'
-
-env:
-  VAULTS_DIR: C:/PROJECTS/Obsidian
-  VAULT_NAME: latex
+version: "3"
 
 vars:
-  PLUGIN: latex-exporter
-  DIR_PLUGIN: '{{.VAULTS_DIR}}/{{.VAULT_NAME}}/.obsidian/plugins/{{.PLUGIN}}'
-  VERSION:
-    sh: node -e "console.log(require('./package.json').version)"
+    PLUGIN: latex-exporter
+    DIR_PLUGIN: "{{.VAULTS_DIR}}/{{.VAULT_NAME}}/.obsidian/plugins/{{.PLUGIN}}"
+    VERSION:
+        sh: node -e "console.log(require('./package.json').version)"
 
 # Rename .env-example to .env and modify for your setup
-dotenv: ['.env']
+dotenv: [".env"]
 
 tasks:
-  default:
-    cmds:
-      - task: build
-      - task: copy
-  copy:
-    cmds:
-      - powershell -c "Copy-Item main.js '{{.DIR_PLUGIN}}/main.js'"
-      - powershell -c "Copy-Item manifest.json '{{.DIR_PLUGIN}}/manifest.json'"
+    default:
+        cmds:
+            - task: build
+            - task: copy
+    copy:
+        cmds:
+            - powershell -c "Copy-Item main.js '{{.DIR_PLUGIN}}/main.js'"
+            - powershell -c "Copy-Item manifest.json '{{.DIR_PLUGIN}}/manifest.json'"
 
+    build:
+        cmds:
+            - npm run build
+    patch:
+        cmds:
+            - npm version patch
+    git:
+        cmds:
+            - git add .
+            - git commit -m "task"
+            - git push
 
-  build:
-    cmds:
-      - npm run build
-  patch:
-    cmds:
-      - npm version patch
-  git:
-    cmds:
-      - git add .
-      - git commit -m "task"
-      - git push
+    minify:
+        cmds:
+            - terser main.js -o main.min.js
+    time:
+        cmds:
+            - date +%T
 
-  minify:
-    cmds:
-      - terser main.js -o main.min.js
-  time:
-    cmds:
-      - date +%T
+    dev: npm run dev
 
-  dev: npm run dev
+    bump:
+        desc: "Commit Changes and bump minor version"
+        cmds:
+            - git add .
+            - cmd: git commit -m "bump"
+              ignore_error: true
+            - npm version minor
+            - npm run version
 
-  bump:
-    desc: 'Commit Changes and bump minor version'
-    cmds:
-      - git add .
-      - cmd: git commit -m "bump"
-        ignore_error: true
-      - npm version minor
-      - npm run version
+    release:
+        desc: "Commit Changes, create version tag, push to Github and create a new release on GitHub"
+        cmds:
+            - git add .
+            - cmd: git commit -m "{{.VERSION}} Commit"
+              ignore_error: true
+            # - git tag {{.VERSION}}
+            - git push
+            - git push --tags
+            - task: release-create
 
-  release:
-    desc: 'Commit Changes, create version tag, push to Github and create a new release on GitHub'
-    cmds:
-      - git add .
-      - cmd: git commit -m "{{.VERSION}} Commit"
-        ignore_error: true
-      # - git tag {{.VERSION}}
-      - git push
-      - git push --tags
-      - task: release-create
+    release-create:
+        cmds:
+            - gh release create {{.VERSION}} --title "{{.VERSION}}" --notes "New release of the {{.PLUGIN}} plugin for Obsidian." {{.FILES}}
 
-  release-create:
-    cmds:
-      - gh release create {{.VERSION}} --title "{{.VERSION}}" --notes "New release of the {{.PLUGIN}} plugin for Obsidian." {{.FILES}}
-
-  test:
-    cmds:
-      - echo {{.VERSION}}
+    test:
+        cmds:
+            - echo {{.VERSION}}
