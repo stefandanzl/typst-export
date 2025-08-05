@@ -18,39 +18,27 @@ export class LatexExportSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		
+		// Export format selection (at the top)
 		new Setting(containerEl)
-			.setName("Template file")
-			.setDesc(
-				"Relative vault path to a template file. Only set this if you would like to export with a template (you don't need to.)"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/template_file.tex")
-					.setValue(this.plugin.settings.template_path)
-					.onChange(async (value) => {
-						if (value === "") {
-							value = "/";
-						}
-						this.plugin.settings.template_path =
-							normalizePath(value);
+			.setName("Export format")
+			.setDesc("Choose between LaTeX and Typst output formats")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("latex", "LaTeX")
+					.addOption("typst", "Typst")
+					.setValue(this.plugin.settings.export_format)
+					.onChange(async (value: "latex" | "typst") => {
+						this.plugin.settings.export_format = value;
 						await this.plugin.saveSettings();
+						// Refresh the display to show/hide format-specific settings
+						this.display();
 					})
 			);
-		new Setting(containerEl)
-			.setName("Template folder")
-			.setDesc(
-				"Relative vault path to a folder containing additional template files (e.g., style files, images, etc.). The entire folder contents will be copied to the export directory."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/template_folder/")
-					.setValue(this.plugin.settings.template_folder)
-					.onChange(async (value) => {
-						this.plugin.settings.template_folder =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					})
-			);
+
+		// General Settings
+		containerEl.createEl('h3', { text: 'General Settings' });
+		
 		new Setting(containerEl)
 			.setName("Output folder")
 			.setDesc(
@@ -74,36 +62,23 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
 		new Setting(containerEl)
-			.setName("Math preamble file")
+			.setName("Template folder")
 			.setDesc(
-				"Vault relative path to a preamble.sty file in your vault. It will be included in the export. Example: 'preamble.sty' or 'styles/my-preamble.sty'. Leave empty if you don't have a preamble file."
+				"Relative vault path to a folder containing additional template files (e.g., style files, images, etc.). The entire folder contents will be copied to the export directory."
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("path/to/preamble_file")
-					.setValue(this.plugin.settings.preamble_file)
+					.setPlaceholder("path/to/template_folder/")
+					.setValue(this.plugin.settings.template_folder)
 					.onChange(async (value) => {
-						// Don't normalize empty string to "/"
-						this.plugin.settings.preamble_file = value.trim() === "" ? "" : normalizePath(value);
+						this.plugin.settings.template_folder =
+							normalizePath(value);
 						await this.plugin.saveSettings();
 					})
 			);
-		new Setting(containerEl)
-			.setName("Bib file")
-			.setDesc(
-				"Vault relative path to a bibliography file in your vault. Example: 'bibliography.bib' or 'refs/my-references.bib'. Leave empty if you don't have a bibliography file."
-			)
-			.addText((text) =>
-			text
-				.setPlaceholder("path/to/bib_file")
-				.setValue(this.plugin.settings.bib_file)
-				.onChange(async (value) => {
-					// Don't normalize empty string to "/"
-					this.plugin.settings.bib_file = value.trim() === "" ? "" : normalizePath(value);
-					await this.plugin.saveSettings();
-				})
-		);
+
 		new Setting(containerEl)
 			.setName("Header names for template sections")
 			.setDesc(
@@ -143,6 +118,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
 		new Setting(containerEl)
 			.setName("Prioritize lists over equations")
 			.setDesc(
@@ -156,17 +132,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-		// Note: All files are now automatically overwritten during export for a simpler user experience
-		new Setting(containerEl)
-			.setName("Default cite command")
-			.addText((txt) =>
-				txt
-					.setValue(this.plugin.settings.default_citation_command)
-					.onChange(async (value) => {
-						this.plugin.settings.default_citation_command = value;
-						await this.plugin.saveSettings();
-					})
-			);
+
 		new Setting(containerEl)
 			.setName("Display environment names")
 			.setDesc(
@@ -180,6 +146,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
 		new Setting(containerEl)
 			.setName("Default environment title to file name")
 			.setDesc(
@@ -196,6 +163,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
 		new Setting(containerEl)
 			.setName("Last external folder")
 			.setDesc(
@@ -214,55 +182,104 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// Add export format selection first  
+		// LaTeX-specific settings
+		containerEl.createEl('h3', { text: 'LaTeX Settings' });
+
 		new Setting(containerEl)
-			.setName("Export format")
-			.setDesc("Choose between LaTeX and Typst output formats")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("latex", "LaTeX")
-					.addOption("typst", "Typst")
-					.setValue(this.plugin.settings.export_format)
-					.onChange(async (value: "latex" | "typst") => {
-						this.plugin.settings.export_format = value;
+			.setName("LaTeX template file")
+			.setDesc(
+				"Relative vault path to a LaTeX template file. Only set this if you would like to export with a template (you don't need to.)"
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/template_file.tex")
+					.setValue(this.plugin.settings.template_path)
+					.onChange(async (value) => {
+						if (value === "") {
+							value = "/";
+						}
+						this.plugin.settings.template_path =
+							normalizePath(value);
 						await this.plugin.saveSettings();
-						// Refresh the display to show/hide format-specific settings
-						this.display();
 					})
 			);
 
-		// Add format-specific template settings
-		if (this.plugin.settings.export_format === "typst") {
-			new Setting(containerEl)
-				.setName("Typst template file")
-				.setDesc(
-					"Relative vault path to a Typst template file. Only set this if you would like to export with a custom Typst template."
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder("path/to/template_file.typ")
-						.setValue(this.plugin.settings.typst_template_path)
-						.onChange(async (value) => {
-							this.plugin.settings.typst_template_path =
-								normalizePath(value || "");
-							await this.plugin.saveSettings();
-						})
-				);
-				
-			new Setting(containerEl)
-				.setName("Typst preamble file")
-				.setDesc(
-					"Vault relative path to a Typst preamble file in your vault. It will be imported in the export. Example: 'preamble.typ' or 'styles/my-preamble.typ'. Leave empty if you don't have a preamble file."
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder("path/to/preamble_file.typ")
-						.setValue(this.plugin.settings.typst_preamble_file)
-						.onChange(async (value) => {
-							this.plugin.settings.typst_preamble_file = value.trim() === "" ? "" : normalizePath(value);
-							await this.plugin.saveSettings();
-						})
-				);
-		}
+		new Setting(containerEl)
+			.setName("LaTeX preamble file")
+			.setDesc(
+				"Vault relative path to a preamble.sty file in your vault. It will be included in the export. Example: 'preamble.sty' or 'styles/my-preamble.sty'. Leave empty if you don't have a preamble file."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/preamble_file.sty")
+					.setValue(this.plugin.settings.preamble_file)
+					.onChange(async (value) => {
+						// Don't normalize empty string to "/"
+						this.plugin.settings.preamble_file = value.trim() === "" ? "" : normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Bibliography file")
+			.setDesc(
+				"Vault relative path to a bibliography file in your vault. Example: 'bibliography.bib' or 'refs/my-references.bib'. Leave empty if you don't have a bibliography file."
+			)
+			.addText((text) =>
+			text
+				.setPlaceholder("path/to/bib_file.bib")
+				.setValue(this.plugin.settings.bib_file)
+				.onChange(async (value) => {
+					// Don't normalize empty string to "/"
+					this.plugin.settings.bib_file = value.trim() === "" ? "" : normalizePath(value);
+					await this.plugin.saveSettings();
+				})
+		);
+
+		new Setting(containerEl)
+			.setName("Default cite command")
+			.setDesc("Default LaTeX citation command (e.g., cite, textcite, parencite)")
+			.addText((txt) =>
+				txt
+					.setValue(this.plugin.settings.default_citation_command)
+					.onChange(async (value) => {
+						this.plugin.settings.default_citation_command = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Typst-specific settings
+		containerEl.createEl('h3', { text: 'Typst Settings' });
+
+		new Setting(containerEl)
+			.setName("Typst template file")
+			.setDesc(
+				"Relative vault path to a Typst template file. Only set this if you would like to export with a custom Typst template."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/template_file.typ")
+					.setValue(this.plugin.settings.typst_template_path)
+					.onChange(async (value) => {
+						this.plugin.settings.typst_template_path =
+							normalizePath(value || "");
+						await this.plugin.saveSettings();
+					})
+			);
+			
+		new Setting(containerEl)
+			.setName("Typst preamble file")
+			.setDesc(
+				"Vault relative path to a Typst preamble file in your vault. It will be imported in the export. Example: 'preamble.typ' or 'styles/my-preamble.typ'. Leave empty if you don't have a preamble file."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/preamble_file.typ")
+					.setValue(this.plugin.settings.typst_preamble_file)
+					.onChange(async (value) => {
+						this.plugin.settings.typst_preamble_file = value.trim() === "" ? "" : normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
 	}
 }

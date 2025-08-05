@@ -1,4 +1,4 @@
-#import "template/preamble.typ": *
+#import "preamble.typ": *
 
 // ========================================================================
 // Document Configuration Variables
@@ -107,7 +107,7 @@
     #set text(font: "Liberation Sans")
     
     // TU Graz Logo
-    #image("figures/TU_Graz.svg", width: 30mm)
+    #image("TU_Graz.svg", width: 30mm)
     
     #v(3fr)
     
@@ -173,7 +173,7 @@
     #set text(font: "Liberation Sans")
     
     // TU Graz Logo
-    #image("figures/TU_Graz.svg", width: 30mm)
+    #image("TU_Graz.svg", width: 30mm)
     
     #v(3fr)
     
