@@ -69,10 +69,22 @@ export class FileManagementService {
 	/**
 	 * Handles header file creation for external exports
 	 */
+	/**
+	 * Handles header file creation for external exports
+	 */
+	/**
+	 * Handles header file creation for external exports
+	 */
 	async handleHeaderFileExternal(
 		headerPath: string,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		exportFormat: "latex" | "typst" = "latex"
 	): Promise<void> {
+		// Skip header file creation for Typst exports - not needed
+		if (exportFormat === "typst") {
+			return;
+		}
+		
 		const headerExists = FileOperations.fileExists(headerPath);
 		
 		// Always overwrite for simpler user experience
@@ -83,10 +95,22 @@ export class FileManagementService {
 	/**
 	 * Handles header file creation for vault exports
 	 */
+	/**
+	 * Handles header file creation for vault exports
+	 */
+	/**
+	 * Handles header file creation for vault exports
+	 */
 	async handleHeaderFileVault(
 		headerPath: string,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		exportFormat: "latex" | "typst" = "latex"
 	): Promise<void> {
+		// Skip header file creation for Typst exports - not needed
+		if (exportFormat === "typst") {
+			return;
+		}
+		
 		const headerFile = this.vault.getFileByPath(headerPath);
 		
 		// Always overwrite for simpler user experience

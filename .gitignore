@@ -26,3 +26,5 @@ example/vault/longform_note
 
 .env
 .serena
+
+*.pdf

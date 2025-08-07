@@ -75,7 +75,6 @@
 #let tugraz-figure(
   content,
   caption: none,
-  label: none,
   width: auto,
   placement: none
 ) = {
@@ -84,7 +83,7 @@
     caption: caption,
     placement: placement,
     kind: image,
-  ) <label>
+  )
 }
 
 // Enhanced table function
@@ -115,7 +114,6 @@
   content,
   language: none,
   caption: none,
-  label: none,
   line-numbers: false
 ) = {
   let code-content = if line-numbers {
@@ -146,7 +144,7 @@
   )
   
   if caption != none {
-    [*Code #counter(figure).display():* #caption <label>]
+    [*Code #counter(figure).display():* #caption]
     counter(figure).step()
   }
 }
@@ -211,17 +209,15 @@
 #let tugraz-url(url) = link(url)[#text(fill: tugraz-blue, font: "Liberation Mono")[#url]]
 
 // Math environments for complex equations
-#let equation-block(content, label: none, numbered: true) = {
+#let equation-block(content, numbered: true) = {
   if numbered {
-    math.equation(block: true, numbering: "(1)", content) <label>
+    [$ #content $]
   } else {
-    math.equation(block: true, numbering: none, content)
+    [$ #content $]
   }
 }
 
-// Aligned equations
-#let align-block(content, label: none) = {
-  math.equation(block: true, numbering: "(1)", 
-    align(content)
-  ) <label>
+// Aligned equations  
+#let align-block(content) = {
+  [$ #content $]
 }

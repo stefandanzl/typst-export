@@ -207,34 +207,57 @@ export async function write_with_template(
 	sectionTemplateNames: string[],
 	output_file: TFile,
 	modify_tfile: (file: TFile, content: string) => Promise<void>,
-	preamble_file?: TFile
+	preamble_file?: TFile,
+	read_preamble?: (file: TFile) => Promise<string>
 ) {
-	// console.log("PARSED", parsed_contents);
-	// console.log("TEMPLATE CONTENT", template_content);
+	console.log("PARSED YAML KEYS:", Object.keys(parsed_contents["yaml"]));
+	console.log("PARSED YAML CONTENT:", parsed_contents["yaml"]);
+
+	// Handle {{PREAMBLE}} placeholder replacement
+	let preambleContent = "";
+	if (preamble_file) {
+		try {
+			if (read_preamble) {
+				// Use the provided reader function (for external exports)
+				preambleContent = await read_preamble(preamble_file);
+			} else {
+				// Try to access the vault through the global context or file properties
+				// This works for vault exports where we have access to the vault
+				const app = (globalThis as any).app;
+				if (app && app.vault && app.vault.read) {
+					preambleContent = await app.vault.read(preamble_file);
+				}
+			}
+		} catch (error) {
+			console.error("Error reading preamble file:", error);
+		}
+	}
+	
+	// Replace {{PREAMBLE}} placeholder
+	template_content = template_content.replace(/\{\{PREAMBLE\}\}/g, preambleContent);
 
 	for (const key of Object.keys(parsed_contents["yaml"])) {
+		const value = parsed_contents["yaml"][key];
+		console.log(`Replacing $${key}$ with: "${value}"`);
 		template_content = template_content.replace(
-			RegExp(`\\\$${key}\\\$`, "i"),
-			parsed_contents["yaml"][key]
+			RegExp(`\\\$${key}\\\$`, "gi"),
+			value || ""
 		);
 	}
 
 	for (const section of Object.keys(parsed_contents["sections"])) {
 		// const placeholder = new RegExp(`\\$${sectionName}\\$`, "gi");
 		template_content = template_content.replace(
-			RegExp(`\\\$${section}\\\$`, "i"),
-			parsed_contents["sections"][section]
+			RegExp(`\\\$${section}\\\$`, "gi"),
+			parsed_contents["sections"][section] || ""
 		);
 	}
 
-	// console.log("CONTENT1", template_content);
-	// // Clean up unused placeholders
-	// template_content = template_content.replace(/\$[a-z]+\$/gi, "");
+	// Clean up any remaining unreplaced placeholders by replacing them with empty strings
+	// This prevents Typst compilation errors for undefined variables
+	template_content = template_content.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*\$/g, "");
 
-	// console.log("CONTENT2", template_content);
-	// template_content = template_content.replace(/\\[a-z]+\{\}/g, "");
-
-	// console.log("FINAL TEMPLATE CONTENT", template_content);
+	console.log("FINAL TEMPLATE CONTENT SAMPLE:", template_content.substring(0, 500));
 
 	await modify_tfile(output_file, template_content);
 }

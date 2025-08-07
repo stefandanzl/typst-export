@@ -222,6 +222,9 @@ export class ExportService {
 	/**
 	 * Handles supporting files for external export
 	 */
+	/**
+	 * Handles supporting files for external export
+	 */
 	private async handleSupportingFilesExternal(
 		parsedContents: parsed_longform,
 		exportPaths: ExportPaths,
@@ -236,10 +239,11 @@ export class ExportService {
 			messageBuilder
 		);
 
-		// Handle header file
+		// Handle header file with format-specific content
 		await this.fileManager.handleHeaderFileExternal(
 			exportPaths.headerPath,
-			messageBuilder
+			messageBuilder,
+			settings.export_format
 		);
 
 		// Handle bibliography file
@@ -251,6 +255,9 @@ export class ExportService {
 		);
 	}
 
+	/**
+	 * Handles supporting files for vault export
+	 */
 	/**
 	 * Handles supporting files for vault export
 	 */
@@ -268,10 +275,11 @@ export class ExportService {
 			messageBuilder
 		);
 
-		// Handle header file
+		// Handle header file with format-specific content
 		await this.fileManager.handleHeaderFileVault(
 			exportPaths.headerPath,
-			messageBuilder
+			messageBuilder,
+			settings.export_format
 		);
 
 		// Handle bibliography file
@@ -283,6 +291,12 @@ export class ExportService {
 		);
 	}
 
+	/**
+	 * Writes the main output file for external export
+	 */
+	/**
+	 * Writes the main output file for external export
+	 */
 	/**
 	 * Writes the main output file for external export
 	 */
@@ -299,16 +313,30 @@ export class ExportService {
 			templateContent = await this.app.vault.read(templateFile);
 		}
 
+		// Get the correct preamble file based on export format
+		const preamblePath = settings.export_format === "typst" ? settings.typst_preamble_file : settings.preamble_file;
+		const preambleFile = preamblePath ? this.app.vault.getFileByPath(preamblePath) || undefined : undefined;
+
 		await write_with_template(
 			templateContent,
 			parsedContents,
 			settings.sectionTemplateNames,
 			{ path: exportPaths.outputFilePath } as TFile,
 			async (_file, content) => FileOperations.writeFile(exportPaths.outputFilePath, content),
-			templateFile || undefined
+			preambleFile,
+			preambleFile ? this.app.vault.read.bind(this.app.vault) : undefined
 		);
 	}
 
+	/**
+	 * Writes the main output file for vault export
+	 */
+	/**
+	 * Writes the main output file for vault export
+	 */
+	/**
+	 * Writes the main output file for vault export
+	 */
 	/**
 	 * Writes the main output file for vault export
 	 */
@@ -325,13 +353,18 @@ export class ExportService {
 			templateContent = await this.app.vault.read(templateFile);
 		}
 
+		// Get the correct preamble file based on export format
+		const preamblePath = settings.export_format === "typst" ? settings.typst_preamble_file : settings.preamble_file;
+		const preambleFile = preamblePath ? this.app.vault.getFileByPath(preamblePath) || undefined : undefined;
+
 		await write_with_template(
 			templateContent,
 			parsedContents,
 			settings.sectionTemplateNames,
 			outputFile,
 			this.app.vault.modify.bind(this.app.vault),
-			templateFile || undefined
+			preambleFile,
+			preambleFile ? this.app.vault.read.bind(this.app.vault) : undefined
 		);
 	}
 

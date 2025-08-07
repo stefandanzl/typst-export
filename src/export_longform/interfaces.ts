@@ -106,7 +106,7 @@ export const DEFAULT_TYPST_TEMPLATE = `
 )
 
 #set text(
-  font: "Linux Libertine",
+  font: ("Times New Roman", "Liberation Serif"),
   size: 12pt,
   lang: "en",
 )
@@ -141,7 +141,7 @@ export const DEFAULT_TYPST_TEMPLATE = `
 ]
 
 // Table of Contents
-#outline(title: [Table of Contents], depth: 3, indent: true)
+#outline(title: [Table of Contents], depth: 3, indent: auto)
 #pagebreak()
 
 // List of Figures (if any figures exist)

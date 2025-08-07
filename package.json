@@ -28,6 +28,8 @@
 		"typescript": "^4.7.4"
 	},
 	"dependencies": {
-		"ts-node": "^10.9.2"
+		"@myriaddreamin/typst.ts": "^0.6.1-rc2",
+		"ts-node": "^10.9.2",
+		"typst": "^0.10.0-8"
 	}
 }
