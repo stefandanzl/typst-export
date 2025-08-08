@@ -218,7 +218,6 @@
 
   // Blank pages
   page(numbering: none)[]
-  page(numbering: none)[]
 
   counter(page).update(1)
   set page(numbering: "i")
@@ -234,7 +233,7 @@
 
 
   // Blank page
-  page()[]
+  // page()[]
 
   // German Affidavit
   affidavit-page(
@@ -246,7 +245,7 @@
   )
 
   // Blank page
-  page()[]
+  // page()[]
 
 
   if abstract-en != none {
@@ -262,7 +261,7 @@
     ]
 
     // Blank page
-    page()[]
+    // page()[]
   }
 
   if abstract-de != none {
@@ -282,11 +281,12 @@
     page()[]
   }
 
+  set cite(style: "alphanumeric")
   // Table of Contents
   set heading(supplement: "Abschnitt")
   page()[
     #align(center)[
-      #text(size: 16pt, weight: "bold")[Contents]
+      #text(size: 16pt, weight: "bold")[Inhaltsverzeichnis]
     ]
 
     #v(1cm)
@@ -299,13 +299,13 @@
   ]
 
   // Blank page
-  page()[]
+  // page()[]
 
   show figure.where(kind: image): set figure(supplement: "Abbildung")
   // List of Figures
   page()[
     #align(center)[
-      #text(size: 16pt, weight: "bold")[List of Figures]
+      #text(size: 16pt, weight: "bold")[Abbildungsverzeichnis]
     ]
 
     #v(1cm)
@@ -317,13 +317,13 @@
   ]
 
   // Blank page
-  page()[]
+  // page()[]
 
   show figure.where(kind: table): set figure(supplement: "Tabelle")
   // List of Tables
   page()[
     #align(center)[
-      #text(size: 16pt, weight: "bold")[List of Tables]
+      #text(size: 16pt, weight: "bold")[Tabellenverzeichnis]
     ]
 
     #v(1cm)
@@ -335,7 +335,7 @@
   ]
 
   // Blank page
-  page()[]
+  // page()[]
 
   // Main content starts here with Arabic numbering
   set page(numbering: "1")
@@ -394,15 +394,24 @@
   body
 
 
-  let appendix = "{{appendix}}"
+  set page(
+    header: none,
+  )
+  [= Quellenverzeichnis]
+  bibliography(
+    "bibliography.bib",
+    title: none,
+    full: false,
+    // style: "chicago-notes",
+  )
+
+
+  let appendix = [{{appendix}}]
 
   if appendix != none {
     // Appendix
     pagebreak()
 
-    set page(
-      header: none,
-    )
 
     set heading(numbering: "A.1")
     counter(heading).update(0)
@@ -415,7 +424,7 @@
       ]
       v(1cm)
     }
-
+    [= Appendix]
     appendix
   }
 }
@@ -436,6 +445,7 @@
 )[
   // Main thesis content
   {{body}}
+
 ]
 
 

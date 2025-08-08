@@ -18,7 +18,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		
+
 		// Export format selection (at the top)
 		new Setting(containerEl)
 			.setName("Export format")
@@ -37,8 +37,8 @@ export class LatexExportSettingTab extends PluginSettingTab {
 			);
 
 		// General Settings
-		containerEl.createEl('h3', { text: 'General Settings' });
-		
+		containerEl.createEl("h3", { text: "General Settings" });
+
 		new Setting(containerEl)
 			.setName("Output folder")
 			.setDesc(
@@ -49,6 +49,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					.setPlaceholder("path/to/output_folder/")
 					.setValue(this.plugin.settings.base_output_folder)
 					.onChange(async (value) => {
+						/*
 						const match = /^(?:\/|\/?(.*?)\/?)$/.exec(value);
 						if (match) {
 							if (match[1] === undefined) {
@@ -56,14 +57,14 @@ export class LatexExportSettingTab extends PluginSettingTab {
 							} else {
 								value = match[1];
 							}
-						}
-						this.plugin.settings.base_output_folder =
-							normalizePath(value);
+						} */
+						this.plugin.settings.base_output_folder = value;
+						console.log("Base output folder set to:", value);
+						// Ensure the path is normalized
+						// normalizePath(value);
 						await this.plugin.saveSettings();
 					})
 			);
-
-
 
 		new Setting(containerEl)
 			.setName("Header names for template sections")
@@ -169,7 +170,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 			);
 
 		// Typst-specific settings
-		containerEl.createEl('h3', { text: 'Typst Settings' });
+		containerEl.createEl("h3", { text: "Typst Settings" });
 
 		new Setting(containerEl)
 			.setName("Typst template file")
@@ -186,7 +187,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-			
+
 		new Setting(containerEl)
 			.setName("Typst template folder")
 			.setDesc(
@@ -204,7 +205,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 			);
 
 		// LaTeX-specific settings
-		containerEl.createEl('h3', { text: 'LaTeX Settings' });
+		containerEl.createEl("h3", { text: "LaTeX Settings" });
 
 		new Setting(containerEl)
 			.setName("Typst template file")
@@ -221,7 +222,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-			
+
 		new Setting(containerEl)
 			.setName("Typst template folder")
 			.setDesc(
@@ -237,7 +238,5 @@ export class LatexExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-			
-
 	}
 }
