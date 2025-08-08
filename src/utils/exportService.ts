@@ -314,7 +314,7 @@ export class ExportService {
 		}
 
 		// Get the correct preamble file based on export format
-		const preamblePath = settings.export_format === "typst" ? settings.typst_preamble_file : settings.preamble_file;
+		const preamblePath = settings.export_format === "typst" ? "" : settings.preamble_file;
 		const preambleFile = preamblePath ? this.app.vault.getFileByPath(preamblePath) || undefined : undefined;
 
 		await write_with_template(
@@ -354,7 +354,7 @@ export class ExportService {
 		}
 
 		// Get the correct preamble file based on export format
-		const preamblePath = settings.export_format === "typst" ? settings.typst_preamble_file : settings.preamble_file;
+		const preamblePath = settings.export_format === "typst" ? "" : settings.preamble_file;
 		const preambleFile = preamblePath ? this.app.vault.getFileByPath(preamblePath) || undefined : undefined;
 
 		await write_with_template(

@@ -36,7 +36,7 @@ export interface ExportPluginSettings {
 	export_format: "latex" | "typst";
 	typst_template_path: string;
 	typst_template_folder: string;
-	typst_preamble_file: string;
+
 }
 
 export const DEFAULT_SETTINGS: ExportPluginSettings = {
@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	export_format: "latex",
 	typst_template_path: "",
 	typst_template_folder: "",
-	typst_preamble_file: "",
+
 };
 
 export const HEADING_STRUCTURE = {
@@ -73,21 +73,21 @@ export const DEFAULT_LATEX_TEMPLATE = `
 {{PREAMBLE}}
 
 \addbibresource{bibliography.bib}
-\title{$title$}
-\author{$author$}
+\title{{{title}}}
+\author{{{author}}}
 
 \begin{document}
 \maketitle
 
-$abstract$
+{{abstract}}
 
-$body$
+{{body}}
 
-$customSections$
+{{customSections}}
 
 \printbibliography
 
-$appendix$
+{{appendix}}
 
 \end{document}
 `;
@@ -97,7 +97,7 @@ export const DEFAULT_TYPST_TEMPLATE = `
 
 {{PREAMBLE}}
 
-#set document(title: "$title$", author: "$author$")
+#set document(title: "{{title}}", author: "{{author}}")
 #set page(
   paper: "a4",
   margin: (top: 2.5cm, bottom: 2.5cm, left: 2.5cm, right: 2.5cm),
@@ -118,11 +118,11 @@ export const DEFAULT_TYPST_TEMPLATE = `
 #align(center)[
   #v(2fr)
   
-  #text(20pt, weight: "bold")[$title$]
+  #text(20pt, weight: "bold")[{{title}}]
   
   #v(1fr)
   
-  #text(14pt)[$author$]
+  #text(14pt)[{{author}}]
   
   #v(2fr)
   
@@ -134,9 +134,9 @@ export const DEFAULT_TYPST_TEMPLATE = `
 #pagebreak()
 
 // Abstract
-#if "$abstract$".len() > 0 [
+#if "{{abstract}}".len() > 0 [
   #heading(level: 1, numbering: none)[Abstract]
-  $abstract$
+  {{abstract}}
   #pagebreak()
 ]
 
@@ -153,20 +153,20 @@ export const DEFAULT_TYPST_TEMPLATE = `
 #pagebreak()
 
 // Main Content
-$body$
+{{body}}
 
 // Custom Sections
-$customSections$
+{{customSections}}
 
 // Bibliography
 #pagebreak()
 #bibliography("bibliography.bib", title: "Bibliography", style: "ieee")
 
 // Appendix
-#if "$appendix$".len() > 0 [
+#if "{{appendix}}".len() > 0 [
   #pagebreak()
   #heading(level: 1, numbering: none)[Appendix]
-  $appendix$
+  {{appendix}}
 ]
 `;
 

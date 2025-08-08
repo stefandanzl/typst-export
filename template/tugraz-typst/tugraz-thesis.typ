@@ -220,6 +220,9 @@
   page(numbering: none)[]
   page(numbering: none)[]
 
+  counter(page).update(1)
+  set page(numbering: "i")
+
   // English Affidavit
   affidavit-page(
     title: "Affidavit",
@@ -229,7 +232,7 @@
     lang: "en",
   )
 
-  set page(numbering: "i")
+
   // Blank page
   page()[]
 
@@ -245,34 +248,39 @@
   // Blank page
   page()[]
 
-  // Abstract
-  page()[
-    #align(center)[
-      #text(size: 16pt, weight: "bold")[Abstract]
+
+  if abstract-en != none {
+    // Abstract
+    page()[
+      #align(center)[
+        #text(size: 16pt, weight: "bold")[Abstract]
+      ]
+
+      #v(1cm)
+
+      #abstract-en
     ]
 
-    #v(1cm)
+    // Blank page
+    page()[]
+  }
 
-    #abstract-en
-  ]
+  if abstract-de != none {
+    // German Abstract (Kurzfassung)
+    page()[
+      #set text(lang: "de")
+      #align(center)[
+        #text(size: 16pt, weight: "bold")[Kurzfassung]
+      ]
 
-  // Blank page
-  page()[]
+      #v(1cm)
 
-  // German Abstract (Kurzfassung)
-  page()[
-    #set text(lang: "de")
-    #align(center)[
-      #text(size: 16pt, weight: "bold")[Kurzfassung]
+      #abstract-de
     ]
 
-    #v(1cm)
-
-    #abstract-de
-  ]
-
-  // Blank page
-  page()[]
+    // Blank page
+    page()[]
+  }
 
   // Table of Contents
   set heading(supplement: "Abschnitt")
@@ -408,15 +416,7 @@
       v(1cm)
     }
 
-
-    [
-      = Appendix
-
-      == Appendix Number one <appendix-number-one>
-
-      Additional content goes here.
-      I think @appendix-number-one is a good reference.
-    ]
+    appendix
   }
 }
 
@@ -431,59 +431,11 @@
   institute-head: "Head of Institute",
   location: "Graz",
   date: "January 2024",
-  abstract-en: "This is the abstract in English describing what the thesis contains and its main contributions.",
-  abstract-de: "Dies ist die deutsche Zusammenfassung, die beschreibt, was in der Arbeit zu erwarten ist.",
+  abstract-en: "{{abstract-en}}",
+  abstract-de: "{{abstract-de}}",
 )[
   // Main thesis content
-  = Introduction
-
-  This is the introduction chapter of the thesis.
-
-  = Literature Review
-
-  This chapter covers the relevant literature and background.
-
-  == Subsection
-
-  This is a subsection within the literature review.
-
-  === Sub-subsection
-
-  This is a sub-subsection.
-
-  = Methodology
-
-  This chapter describes the methodology used in the research.
-
-  #figure(
-    image("TU_Graz.svg", width: 80%),
-    caption: [Sales data visualization],
-  ) <sales-chart>
-
-  See @sales-chart for trends.
-
-  = Results
-
-  This chapter presents the results of the research.
-
-  #figure(
-    table(
-      columns: 3,
-      [Name], [Age], [Role],
-      [Alice], [25], [Dev],
-    ),
-    caption: [Team information],
-  ) <team>
-
-  = Discussion
-
-  This chapter discusses the implications of the results.
-
-  = Conclusion
-
-  This chapter concludes the thesis and suggests future work.
-
-  Siehe @team als Teaminformation.
+  {{body}}
 ]
 
 

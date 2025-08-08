@@ -236,26 +236,49 @@ export async function write_with_template(
 	// Replace {{PREAMBLE}} placeholder
 	template_content = template_content.replace(/\{\{PREAMBLE\}\}/g, preambleContent);
 
+	// Determine format based on template content to use appropriate placeholder syntax
+	const isTypstFormat = template_content.includes('#import') || template_content.includes('#set') || template_content.includes('#align');
+	
 	for (const key of Object.keys(parsed_contents["yaml"])) {
 		const value = parsed_contents["yaml"][key];
-		console.log(`Replacing $${key}$ with: "${value}"`);
-		template_content = template_content.replace(
-			RegExp(`\\\$${key}\\\$`, "gi"),
-			value || ""
-		);
+		if (isTypstFormat) {
+			console.log(`Replacing {{${key}}} with: "${value}"`);
+			template_content = template_content.replace(
+				RegExp(`\\{\\{${key}\\}\\}`, "gi"),
+				value || ""
+			);
+		} else {
+			console.log(`Replacing $${key}$ with: "${value}"`);
+			template_content = template_content.replace(
+				RegExp(`\\$${key}\\$`, "gi"),
+				value || ""
+			);
+		}
 	}
 
 	for (const section of Object.keys(parsed_contents["sections"])) {
-		// const placeholder = new RegExp(`\\$${sectionName}\\$`, "gi");
-		template_content = template_content.replace(
-			RegExp(`\\\$${section}\\\$`, "gi"),
-			parsed_contents["sections"][section] || ""
-		);
+		if (isTypstFormat) {
+			template_content = template_content.replace(
+				RegExp(`\\{\\{${section}\\}\\}`, "gi"),
+				parsed_contents["sections"][section] || ""
+			);
+		} else {
+			// const placeholder = new RegExp(`\\$${sectionName}\\$`, "gi");
+			template_content = template_content.replace(
+				RegExp(`\\$${section}\\$`, "gi"),
+				parsed_contents["sections"][section] || ""
+			);
+		}
 	}
 
 	// Clean up any remaining unreplaced placeholders by replacing them with empty strings
-	// This prevents Typst compilation errors for undefined variables
-	template_content = template_content.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*\$/g, "");
+	if (isTypstFormat) {
+		// Clean up any remaining {{placeholder}} patterns for Typst
+		template_content = template_content.replace(/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/g, "");
+	} else {
+		// Clean up any remaining $placeholder$ patterns for LaTeX  
+		template_content = template_content.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*\$/g, "");
+	}
 
 	console.log("FINAL TEMPLATE CONTENT SAMPLE:", template_content.substring(0, 500));
 
