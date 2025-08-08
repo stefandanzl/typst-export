@@ -1,4 +1,6 @@
-// TU Graz Thesis Template
+// TU Graz Master's Thesis Template
+// Refactored with base templates for title pages and affidavits
+
 
 // Base template for title page
 #let title-page(
@@ -230,6 +232,9 @@
   )
 
 
+  // Blank page
+  // page()[]
+
   // German Affidavit
   affidavit-page(
     title: "Eidesstattliche Erklärung",
@@ -238,6 +243,9 @@
     signature-label: "Unterschrift",
     lang: "de",
   )
+
+  // Blank page
+  // page()[]
 
 
   if abstract-en != none {
@@ -251,6 +259,9 @@
 
       #abstract-en
     ]
+
+    // Blank page
+    // page()[]
   }
 
   if abstract-de != none {
@@ -289,6 +300,8 @@
 
   show figure.where(kind: image): set figure(supplement: "Abbildung")
   show figure.where(kind: table): set figure(supplement: "Tabelle")
+  // Blank page
+  // page()[]
 
 
   // Main content starts here with Arabic numbering
@@ -365,7 +378,11 @@
 
   // List of Figures
   page()[
+    // #align(center)[
+    //   #text(size: 16pt, weight: "bold")[Abbildungsverzeichnis]
+    // ]
 
+    // #v(1cm)
     == Abbildungsverzeichnis
     #outline(
       title: none,
@@ -373,16 +390,25 @@
     )
   ]
 
+  // Blank page
+  // page()[]
 
   // List of Tables
   page()[
+    // #align(center)[
+    //   #text(size: 16pt, weight: "bold")[Tabellenverzeichnis]
+    // ]
 
+    // #v(1cm)
     == Tabellenverzeichnis
     #outline(
       title: none,
       target: figure.where(kind: table),
     )
   ]
+
+  // Blank page
+  // page()[]
 
 
   let appendix = [{{appendix}}]
@@ -395,7 +421,14 @@
     set heading(numbering: "A.1")
     counter(heading).update(0)
 
-
+    // show heading.where(level: 1): it => {
+    //   pagebreak(weak: true)
+    //   v(2cm)
+    //   text(size: 20pt, weight: "bold")[
+    //     #counter(heading).display() #it.body
+    //   ]
+    //   v(1cm)
+    // }
     [= Appendix]
     appendix
   }

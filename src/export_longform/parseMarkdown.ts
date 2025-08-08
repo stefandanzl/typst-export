@@ -232,52 +232,67 @@ export async function write_with_template(
 			console.error("Error reading preamble file:", error);
 		}
 	}
-	
-	// Replace {{PREAMBLE}} placeholder
-	template_content = template_content.replace(/\{\{PREAMBLE\}\}/g, preambleContent);
 
 	// Determine format based on template content to use appropriate placeholder syntax
 	const isTypstFormat = template_content.includes('#import') || template_content.includes('#set') || template_content.includes('#align');
 	
-	for (const key of Object.keys(parsed_contents["yaml"])) {
-		const value = parsed_contents["yaml"][key];
-		if (isTypstFormat) {
-			console.log(`Replacing {{${key}}} with: "${value}"`);
-			template_content = template_content.replace(
-				RegExp(`\\{\\{${key}\\}\\}`, "gi"),
-				value || ""
-			);
-		} else {
-			console.log(`Replacing $${key}$ with: "${value}"`);
-			template_content = template_content.replace(
-				RegExp(`\\$${key}\\$`, "gi"),
-				value || ""
-			);
-		}
-	}
-
-	for (const section of Object.keys(parsed_contents["sections"])) {
-		if (isTypstFormat) {
-			template_content = template_content.replace(
-				RegExp(`\\{\\{${section}\\}\\}`, "gi"),
-				parsed_contents["sections"][section] || ""
-			);
-		} else {
-			// const placeholder = new RegExp(`\\$${sectionName}\\$`, "gi");
-			template_content = template_content.replace(
-				RegExp(`\\$${section}\\$`, "gi"),
-				parsed_contents["sections"][section] || ""
-			);
-		}
-	}
-
-	// Clean up any remaining unreplaced placeholders by replacing them with empty strings
 	if (isTypstFormat) {
-		// Clean up any remaining {{placeholder}} patterns for Typst
-		template_content = template_content.replace(/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/g, "");
+		// For Typst: Replace ALL {{placeholder}} patterns generically
+		console.log("Processing Typst template with {{placeholder}} syntax");
+		
+		// Create a comprehensive data map from all available sources
+		const dataMap = new Map<string, string>();
+		
+		// Add PREAMBLE content
+		dataMap.set("PREAMBLE", preambleContent);
+		
+		// Add all YAML frontmatter data
+		for (const [key, value] of Object.entries(parsed_contents["yaml"])) {
+			dataMap.set(key.toLowerCase(), value || "");
+			dataMap.set(key, value || ""); // Also store with original case
+		}
+		
+		// Add all sections data
+		for (const [section, content] of Object.entries(parsed_contents["sections"])) {
+			dataMap.set(section.toLowerCase(), content || "");
+			dataMap.set(section, content || ""); // Also store with original case
+		}
+		
+		// Find and replace ALL {{placeholder}} patterns
+		template_content = template_content.replace(/\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g, (match, placeholder) => {
+			const replacement = dataMap.get(placeholder) || dataMap.get(placeholder.toLowerCase()) || "";
+			console.log(`Replacing {{${placeholder}}} with: "${replacement}"`);
+			return replacement;
+		});
+		
 	} else {
-		// Clean up any remaining $placeholder$ patterns for LaTeX  
-		template_content = template_content.replace(/\$[a-zA-Z_][a-zA-Z0-9_]*\$/g, "");
+		// For LaTeX: Replace ALL $placeholder$ patterns generically
+		console.log("Processing LaTeX template with $placeholder$ syntax");
+		
+		// Replace {{PREAMBLE}} placeholder first (this is always {{}} format)
+		template_content = template_content.replace(/\{\{PREAMBLE\}\}/g, preambleContent);
+		
+		// Create a comprehensive data map from all available sources
+		const dataMap = new Map<string, string>();
+		
+		// Add all YAML frontmatter data
+		for (const [key, value] of Object.entries(parsed_contents["yaml"])) {
+			dataMap.set(key.toLowerCase(), value || "");
+			dataMap.set(key, value || ""); // Also store with original case
+		}
+		
+		// Add all sections data
+		for (const [section, content] of Object.entries(parsed_contents["sections"])) {
+			dataMap.set(section.toLowerCase(), content || "");
+			dataMap.set(section, content || ""); // Also store with original case
+		}
+		
+		// Find and replace ALL $placeholder$ patterns
+		template_content = template_content.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)\$/g, (match, placeholder) => {
+			const replacement = dataMap.get(placeholder) || dataMap.get(placeholder.toLowerCase()) || "";
+			console.log(`Replacing $${placeholder}$ with: "${replacement}"`);
+			return replacement;
+		});
 	}
 
 	console.log("FINAL TEMPLATE CONTENT SAMPLE:", template_content.substring(0, 500));

@@ -291,15 +291,17 @@ export class ExportService {
 		settings: ExportPluginSettings,
 		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
-		// Handle preamble file
-		const preambleFile = this.app.vault.getFileByPath(
-			settings.preamble_file
-		);
-		await this.fileManager.handlePreambleFileExternal(
-			preambleFile || undefined,
-			exportPaths.preamblePath,
-			messageBuilder
-		);
+		// Handle preamble file (only for LaTeX exports)
+		if (settings.export_format !== "typst") {
+			const preambleFile = this.app.vault.getFileByPath(
+				settings.preamble_file
+			);
+			await this.fileManager.handlePreambleFileExternal(
+				preambleFile || undefined,
+				exportPaths.preamblePath,
+				messageBuilder
+			);
+		}
 
 		// Handle header file with format-specific content
 		await this.fileManager.handleHeaderFileExternal(
@@ -329,15 +331,17 @@ export class ExportService {
 		settings: ExportPluginSettings,
 		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
-		// Handle preamble file
-		const preambleFile = this.app.vault.getFileByPath(
-			settings.preamble_file
-		);
-		await this.fileManager.handlePreambleFileVault(
-			preambleFile || undefined,
-			exportPaths.preamblePath,
-			messageBuilder
-		);
+		// Handle preamble file (only for LaTeX exports)
+		if (settings.export_format !== "typst") {
+			const preambleFile = this.app.vault.getFileByPath(
+				settings.preamble_file
+			);
+			await this.fileManager.handlePreambleFileVault(
+				preambleFile || undefined,
+				exportPaths.preamblePath,
+				messageBuilder
+			);
+		}
 
 		// Handle header file with format-specific content
 		await this.fileManager.handleHeaderFileVault(
