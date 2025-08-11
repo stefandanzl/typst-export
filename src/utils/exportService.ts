@@ -15,6 +15,7 @@ import {
 	DEFAULT_TYPST_TEMPLATE,
 } from "../export_longform/interfaces";
 
+
 /**
  * Service for handling export operations
  */
@@ -101,6 +102,9 @@ export class ExportService {
 				exportPaths,
 				settings
 			);
+
+			// 5. Execute post-conversion command if specified
+			await this.executePostCommand(exportPaths.outputFilePath, settings);
 
 			// Update settings with last external folder
 			settings.last_external_folder = outputPath;
@@ -204,13 +208,21 @@ export class ExportService {
 					exportPaths.outputFilePath,
 					""
 				);
-			} else {
-				// Always overwrite for simpler user experience
+			} else if (settings.replace_existing_files) {
+				// Overwrite existing file
 				await this.app.vault.delete(outputFile);
 				outputFile = await this.app.vault.create(
 					exportPaths.outputFilePath,
 					""
 				);
+			} else {
+				// Keep existing file, skip writing
+				new Notice(`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`);
+				return {
+					success: true,
+					message: `Export skipped - file exists: ${exportPaths.outputFilePath}`,
+					outputPath: exportPaths.outputFilePath,
+				};
 			}
 
 			// 5. Write the main output file (mainmd.tex) last
@@ -219,6 +231,11 @@ export class ExportService {
 				outputFile,
 				settings
 			);
+
+			// 6. Execute post-conversion command if specified (convert vault path to absolute)
+			const vaultAdapter = this.app.vault.adapter as any;
+			const absolutePath = vaultAdapter.getFullPath ? vaultAdapter.getFullPath(exportPaths.outputFilePath) : exportPaths.outputFilePath;
+			await this.executePostCommand(absolutePath, settings);
 
 			const finalMessage = messageBuilder.build(
 				exportPaths.outputFolderPath,
@@ -299,7 +316,8 @@ export class ExportService {
 			await this.fileManager.handlePreambleFileExternal(
 				preambleFile || undefined,
 				exportPaths.preamblePath,
-				messageBuilder
+				messageBuilder,
+				settings.replace_existing_files
 			);
 		}
 
@@ -307,7 +325,8 @@ export class ExportService {
 		await this.fileManager.handleHeaderFileExternal(
 			exportPaths.headerPath,
 			messageBuilder,
-			settings.export_format
+			settings.export_format,
+			settings.replace_existing_files
 		);
 
 		// Handle bibliography file
@@ -339,7 +358,8 @@ export class ExportService {
 			await this.fileManager.handlePreambleFileVault(
 				preambleFile || undefined,
 				exportPaths.preamblePath,
-				messageBuilder
+				messageBuilder,
+				settings.replace_existing_files
 			);
 		}
 
@@ -347,7 +367,8 @@ export class ExportService {
 		await this.fileManager.handleHeaderFileVault(
 			exportPaths.headerPath,
 			messageBuilder,
-			settings.export_format
+			settings.export_format,
+			settings.replace_existing_files
 		);
 
 		// Handle bibliography file
@@ -373,6 +394,12 @@ export class ExportService {
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings
 	): Promise<void> {
+		// Check if file exists and respect replace_existing_files setting
+		if (!settings.replace_existing_files && FileOperations.fileExists(exportPaths.outputFilePath)) {
+			console.log(`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`);
+			return;
+		}
+		
 		const templatePath =
 			settings.export_format === "typst"
 				? settings.typst_template_path
@@ -516,5 +543,55 @@ export class ExportService {
 	private joinSections(parsedContents: parsed_longform): string {
 		// This would implement the section joining logic
 		return Object.values(parsedContents.sections).join("\n\n");
+	}
+
+	/**
+	 * Execute post-conversion command if specified
+	 */
+	/**
+	 * Execute post-conversion command if specified
+	 */
+	private async executePostCommand(outputFilePath: string, settings: ExportPluginSettings): Promise<void> {
+		const command = settings.export_format === "typst" 
+			? settings.typst_post_command 
+			: settings.latex_post_command;
+
+		if (!command || command.trim() === "") {
+			return; // No command specified
+		}
+
+		try {
+			// Replace the placeholder with the actual output file path
+			console.log(`Original command: ${command}`);
+			console.log(`Output file path: ${outputFilePath}`);
+			
+			const finalCommand = command.replace(/\$filepath/g, outputFilePath);
+			
+			console.log(`Final command after replacement: ${finalCommand}`);
+			
+			// Import required modules for command execution
+			const { exec } = require('child_process');
+			const util = require('util');
+			const execPromise = util.promisify(exec);
+
+			// Execute the command
+			const { stdout, stderr } = await execPromise(finalCommand);
+			
+			if (stdout) {
+				console.log('Command output:', stdout);
+			}
+			if (stderr) {
+				console.warn('Command stderr:', stderr);
+			}
+
+			new Notice(`Post-conversion command executed successfully`);
+			
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.error("Post-conversion command failed:", error);
+			console.error("Command was:", command);
+			console.error("Output file path was:", outputFilePath);
+			new Notice(`Post-conversion command failed: ${errorMessage}`, 8000);
+		}
 	}
 }

@@ -27,7 +27,8 @@ export class FileManagementService {
 	async handlePreambleFileExternal(
 		preambleFile: TFile | undefined,
 		preamblePath: string,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		replaceExisting: boolean = true
 	): Promise<void> {
 		if (!preambleFile) {
 			messageBuilder.addPreambleMessage('not_found');
@@ -36,7 +37,11 @@ export class FileManagementService {
 
 		const preambleExists = FileOperations.fileExists(preamblePath);
 		
-		// Always overwrite for simpler user experience
+		if (preambleExists && !replaceExisting) {
+			messageBuilder.addPreambleMessage('none');
+			return;
+		}
+		
 		FileOperations.copyFileToExternal(this.vaultAdapter, preambleFile, preamblePath);
 		messageBuilder.addPreambleMessage(preambleExists ? 'overwriting' : 'copying');
 	}
@@ -47,7 +52,8 @@ export class FileManagementService {
 	async handlePreambleFileVault(
 		preambleFile: TFile | undefined,
 		preamblePath: string,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		replaceExisting: boolean = true
 	): Promise<void> {
 		if (!preambleFile) {
 			messageBuilder.addPreambleMessage('not_found');
@@ -56,7 +62,11 @@ export class FileManagementService {
 
 		const existingPreamble = this.vault.getFileByPath(preamblePath);
 		
-		// Always overwrite for simpler user experience
+		if (existingPreamble && !replaceExisting) {
+			messageBuilder.addPreambleMessage('none');
+			return;
+		}
+		
 		if (existingPreamble) {
 			await this.vault.delete(existingPreamble);
 			messageBuilder.addPreambleMessage('overwriting');
@@ -78,7 +88,8 @@ export class FileManagementService {
 	async handleHeaderFileExternal(
 		headerPath: string,
 		messageBuilder: ExportMessageBuilder,
-		exportFormat: "latex" | "typst" = "latex"
+		exportFormat: "latex" | "typst" = "latex",
+		replaceExisting: boolean = true
 	): Promise<void> {
 		// Skip header file creation for Typst exports - not needed
 		if (exportFormat === "typst") {
@@ -87,7 +98,11 @@ export class FileManagementService {
 		
 		const headerExists = FileOperations.fileExists(headerPath);
 		
-		// Always overwrite for simpler user experience
+		if (headerExists && !replaceExisting) {
+			messageBuilder.addHeaderMessage('none');
+			return;
+		}
+		
 		FileOperations.writeFile(headerPath, get_header_tex());
 		messageBuilder.addHeaderMessage(headerExists ? 'overwriting' : 'creating');
 	}
@@ -104,7 +119,8 @@ export class FileManagementService {
 	async handleHeaderFileVault(
 		headerPath: string,
 		messageBuilder: ExportMessageBuilder,
-		exportFormat: "latex" | "typst" = "latex"
+		exportFormat: "latex" | "typst" = "latex",
+		replaceExisting: boolean = true
 	): Promise<void> {
 		// Skip header file creation for Typst exports - not needed
 		if (exportFormat === "typst") {
@@ -113,7 +129,11 @@ export class FileManagementService {
 		
 		const headerFile = this.vault.getFileByPath(headerPath);
 		
-		// Always overwrite for simpler user experience
+		if (headerFile && !replaceExisting) {
+			messageBuilder.addHeaderMessage('none');
+			return;
+		}
+		
 		if (headerFile) {
 			await this.vault.delete(headerFile);
 			messageBuilder.addHeaderMessage('overwriting');
@@ -175,7 +195,8 @@ export class FileManagementService {
 	async handleMediaFilesExternal(
 		mediaFiles: TFile[],
 		attachmentsPath: string,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		replaceExisting: boolean = true
 	): Promise<MediaFileProcessingResult> {
 		if (mediaFiles.length === 0) {
 			return { copiedFiles: 0, overwrittenFiles: 0, skippedFiles: 0, errors: [] };
@@ -185,15 +206,19 @@ export class FileManagementService {
 		
 		let copiedFiles = 0;
 		let overwrittenFiles = 0;
+		let skippedFiles = 0;
 		const errors: Error[] = [];
-		let messageAdded = false;
 
 		for (const mediaFile of mediaFiles) {
 			try {
 				const destinationPath = path.join(attachmentsPath, mediaFile.name);
 				const fileExists = FileOperations.fileExists(destinationPath);
 
-				// Always overwrite for simpler user experience
+				if (fileExists && !replaceExisting) {
+					skippedFiles++;
+					continue;
+				}
+				
 				FileOperations.copyFileToExternal(this.vaultAdapter, mediaFile, destinationPath);
 				
 				if (fileExists) {
@@ -215,7 +240,7 @@ export class FileManagementService {
 			messageBuilder.addFiguresMessage('copying');
 		}
 
-		return { copiedFiles, overwrittenFiles, skippedFiles: 0, errors };
+		return { copiedFiles, overwrittenFiles, skippedFiles, errors };
 	}
 
 	/**
@@ -224,7 +249,8 @@ export class FileManagementService {
 	async handleMediaFilesVault(
 		mediaFiles: TFile[],
 		attachmentsPath: string,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		replaceExisting: boolean = true
 	): Promise<MediaFileProcessingResult> {
 		if (mediaFiles.length === 0) {
 			return { copiedFiles: 0, overwrittenFiles: 0, skippedFiles: 0, errors: [] };
@@ -234,6 +260,7 @@ export class FileManagementService {
 		
 		let copiedFiles = 0;
 		let overwrittenFiles = 0;
+		let skippedFiles = 0;
 		const errors: Error[] = [];
 
 		for (const mediaFile of mediaFiles) {
@@ -241,7 +268,11 @@ export class FileManagementService {
 				const destinationPath = path.join(attachmentsPath, mediaFile.name);
 				const existingFile = this.vault.getFileByPath(destinationPath);
 
-				// Always overwrite for simpler user experience
+				if (existingFile && !replaceExisting) {
+					skippedFiles++;
+					continue;
+				}
+				
 				if (existingFile) {
 					await this.vault.delete(existingFile);
 					overwrittenFiles++;
@@ -263,7 +294,7 @@ export class FileManagementService {
 			messageBuilder.addFiguresMessage('copying');
 		}
 
-		return { copiedFiles, overwrittenFiles, skippedFiles: 0, errors };
+		return { copiedFiles, overwrittenFiles, skippedFiles, errors };
 	}
 
 	/**

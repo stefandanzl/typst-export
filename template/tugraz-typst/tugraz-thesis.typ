@@ -240,7 +240,7 @@
   )
 
 
-  if abstract-en != none {
+  if abstract-en != "" {
     // Abstract
     page()[
       #align(center)[
@@ -253,7 +253,7 @@
     ]
   }
 
-  if abstract-de != none {
+  if abstract-de != "" {
     // German Abstract (Kurzfassung)
     page()[
       #set text(lang: "de")
@@ -387,7 +387,7 @@
 
   let appendix = [{{appendix}}]
 
-  if appendix != none {
+  if appendix != "" {
     // Appendix
     pagebreak()
 

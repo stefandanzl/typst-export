@@ -36,6 +36,11 @@ export interface ExportPluginSettings {
 	export_format: "latex" | "typst";
 	typst_template_path: string;
 	typst_template_folder: string;
+	typst_post_command: string;
+	// LaTeX post-processing
+	latex_post_command: string;
+	// File replacement behavior
+	replace_existing_files: boolean;
 
 }
 
@@ -57,6 +62,11 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	export_format: "latex",
 	typst_template_path: "",
 	typst_template_folder: "",
+	typst_post_command: "",
+	// LaTeX post-processing
+	latex_post_command: "",
+	// File replacement behavior
+	replace_existing_files: false,
 
 };
 

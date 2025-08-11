@@ -1,6 +1,7 @@
 import {
 	App,
 	normalizePath,
+	Notice,
 	Setting,
 	SettingTab,
 	PluginSettingTab,
@@ -169,6 +170,20 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("Replace existing files")
+			.setDesc(
+				"Whether to replace already existing files during export. If disabled, existing files will be preserved and not overwritten."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.replace_existing_files)
+					.onChange(async (value) => {
+						this.plugin.settings.replace_existing_files = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		// Typst-specific settings
 		containerEl.createEl("h3", { text: "Typst Settings" });
 
@@ -204,39 +219,167 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("Typst post-conversion command")
+			.setDesc(
+				"Command to run after converting to Typst. Use $filepath as placeholder for the absolute path to the generated .typ file. Example: 'typst compile $filepath'"
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("typst compile $filepath")
+					.setValue(this.plugin.settings.typst_post_command)
+					.onChange(async (value) => {
+						this.plugin.settings.typst_post_command = value;
+						await this.plugin.saveSettings();
+					})
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Test")
+					.setTooltip("Test the command (replaces $filepath with a sample path)")
+					.onClick(async () => {
+						await this.testPostCommand(this.plugin.settings.typst_post_command, "typst");
+					})
+			);
+
 		// LaTeX-specific settings
 		containerEl.createEl("h3", { text: "LaTeX Settings" });
 
 		new Setting(containerEl)
-			.setName("Typst template file")
+			.setName("LaTeX template file")
 			.setDesc(
-				"Relative vault path to a Typst template file. Only set this if you would like to export with a custom Typst template."
+				"Relative vault path to a LaTeX template file. Only set this if you would like to export with a template (you don't need to.)"
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("path/to/template_file.typ")
-					.setValue(this.plugin.settings.typst_template_path)
+					.setPlaceholder("path/to/template_file.tex")
+					.setValue(this.plugin.settings.template_path)
 					.onChange(async (value) => {
-						this.plugin.settings.typst_template_path =
-							normalizePath(value || "");
+						if (value === "") {
+							value = "/";
+						}
+						this.plugin.settings.template_path =
+							normalizePath(value);
 						await this.plugin.saveSettings();
 					})
 			);
 
 		new Setting(containerEl)
-			.setName("Typst template folder")
+			.setName("LaTeX template folder")
 			.setDesc(
-				"Relative vault path to a folder containing Typst template files (e.g., .typ files, images, etc.). The entire folder contents will be copied to the export directory."
+				"Relative vault path to a folder containing LaTeX template files (e.g., .sty files, images, etc.). The entire folder contents will be copied to the export directory."
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("path/to/typst_template_folder/")
-					.setValue(this.plugin.settings.typst_template_folder)
+					.setPlaceholder("path/to/latex_template_folder/")
+					.setValue(this.plugin.settings.template_folder)
 					.onChange(async (value) => {
-						this.plugin.settings.typst_template_folder =
+						this.plugin.settings.template_folder =
 							normalizePath(value);
 						await this.plugin.saveSettings();
 					})
 			);
+
+		new Setting(containerEl)
+			.setName("LaTeX preamble file")
+			.setDesc(
+				"Vault relative path to a preamble.sty file in your vault. It will be included in the export. Example: 'preamble.sty' or 'styles/my-preamble.sty'. Leave empty if you don't have a preamble file."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/preamble_file.sty")
+					.setValue(this.plugin.settings.preamble_file)
+					.onChange(async (value) => {
+						// Don't normalize empty string to "/"
+						this.plugin.settings.preamble_file = value.trim() === "" ? "" : normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Bibliography file")
+			.setDesc(
+				"Vault relative path to a bibliography file in your vault. Example: 'bibliography.bib' or 'refs/my-references.bib'. Leave empty if you don't have a bibliography file."
+			)
+			.addText((text) =>
+			text
+				.setPlaceholder("path/to/bib_file.bib")
+				.setValue(this.plugin.settings.bib_file)
+				.onChange(async (value) => {
+					// Don't normalize empty string to "/"
+					this.plugin.settings.bib_file = value.trim() === "" ? "" : normalizePath(value);
+					await this.plugin.saveSettings();
+				})
+		);
+
+		new Setting(containerEl)
+			.setName("Default cite command")
+			.setDesc("Default LaTeX citation command (e.g., cite, textcite, parencite)")
+			.addText((txt) =>
+				txt
+					.setValue(this.plugin.settings.default_citation_command)
+					.onChange(async (value) => {
+						this.plugin.settings.default_citation_command = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("LaTeX post-conversion command")
+			.setDesc(
+				"Command to run after converting to LaTeX. Use $filepath as placeholder for the absolute path to the generated .tex file. Example: 'pdflatex $filepath'"
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("pdflatex $filepath")
+					.setValue(this.plugin.settings.latex_post_command)
+					.onChange(async (value) => {
+						this.plugin.settings.latex_post_command = value;
+						await this.plugin.saveSettings();
+					})
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Test")
+					.setTooltip("Test the command (replaces $filepath with a sample path)")
+					.onClick(async () => {
+						await this.testPostCommand(this.plugin.settings.latex_post_command, "latex");
+					})
+			);
+	}
+
+	/**
+	 * Test a post-conversion command with a placeholder file
+	 */
+	/**
+	 * Test a post-conversion command with a placeholder file
+	 */
+	private async testPostCommand(command: string, format: "latex" | "typst"): Promise<void> {
+		if (!command || command.trim() === "") {
+			new Notice("No command specified to test");
+			return;
+		}
+
+		try {
+			// Create a temporary test file path
+			const testFileName = format === "typst" ? "mainmd.typ" : "mainmd.tex";
+			const testFilePath = `C:\\temp\\test_project\\${testFileName}`;
+			
+			// Replace the placeholder with the test file path
+			const testCommand = command.replace(/\$filepath/g, testFilePath);
+			
+			// Show the command that would be executed
+			new Notice(`Test command: ${testCommand}`, 8000);
+			
+			// Also log to console for debugging
+			console.log("Original command:", command);
+			console.log("Test file path:", testFilePath);
+			console.log("Final test command:", testCommand);
+			
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			new Notice(`Command test failed: ${errorMessage}`);
+			console.error("Command test error:", error);
+		}
 	}
 }

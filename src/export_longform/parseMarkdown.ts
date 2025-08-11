@@ -258,8 +258,8 @@ export async function write_with_template(
 			dataMap.set(section, content || ""); // Also store with original case
 		}
 		
-		// Find and replace ALL {{placeholder}} patterns
-		template_content = template_content.replace(/\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g, (match, placeholder) => {
+		// Find and replace ALL {{placeholder}} patterns (including hyphens)
+		template_content = template_content.replace(/\{\{([a-zA-Z_][a-zA-Z0-9_-]*)\}\}/g, (match, placeholder) => {
 			const replacement = dataMap.get(placeholder) || dataMap.get(placeholder.toLowerCase()) || "";
 			console.log(`Replacing {{${placeholder}}} with: "${replacement}"`);
 			return replacement;
@@ -287,8 +287,8 @@ export async function write_with_template(
 			dataMap.set(section, content || ""); // Also store with original case
 		}
 		
-		// Find and replace ALL $placeholder$ patterns
-		template_content = template_content.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)\$/g, (match, placeholder) => {
+		// Find and replace ALL $placeholder$ patterns (including hyphens)
+		template_content = template_content.replace(/\$([a-zA-Z_][a-zA-Z0-9_-]*)\$/g, (match, placeholder) => {
 			const replacement = dataMap.get(placeholder) || dataMap.get(placeholder.toLowerCase()) || "";
 			console.log(`Replacing $${placeholder}$ with: "${replacement}"`);
 			return replacement;
