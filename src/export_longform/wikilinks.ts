@@ -659,15 +659,15 @@ export class Environment implements node {
 				}
 			} else if (
 				this.embedded_file_yaml !== undefined &&
-				this.embedded_file_yaml.env_title !== undefined
+				this.embedded_file_yaml.typst_title !== undefined
 			) {
 				if (
-					this.embedded_file_yaml.env_title !== "" &&
-					this.embedded_file_yaml.env_title !== null
+					this.embedded_file_yaml.typst_title !== "" &&
+					this.embedded_file_yaml.typst_title !== null
 				) {
 					// empty string means no title at all.
 					start_env_string +=
-						"[" + this.embedded_file_yaml.env_title + "]";
+						"[" + this.embedded_file_yaml.typst_title + "]";
 				}
 			} else if (
 				settings.default_env_name_to_file_name &&
@@ -711,13 +711,13 @@ export class Environment implements node {
 				}
 			} else if (
 				this.embedded_file_yaml !== undefined &&
-				this.embedded_file_yaml.env_title !== undefined
+				this.embedded_file_yaml.typst_title !== undefined
 			) {
 				if (
-					this.embedded_file_yaml.env_title !== "" &&
-					this.embedded_file_yaml.env_title !== null
+					this.embedded_file_yaml.typst_title !== "" &&
+					this.embedded_file_yaml.typst_title !== null
 				) {
-					env_title = this.embedded_file_yaml.env_title;
+					env_title = this.embedded_file_yaml.typst_title;
 				}
 			} else if (
 				settings.default_env_name_to_file_name &&
@@ -881,13 +881,13 @@ export class UnrolledWikilink implements node {
 		) {
 			const file_contents = await this.unroll_data.read_tfile(file);
 			const [yaml] = parse_yaml_header(file_contents);
-			const bib_key_match = yaml.source?.match(
+			const bib_key_match = yaml.typst_source?.match(
 				/@([a-zA-Z0-9\-_]+)|\[\[@([a-zA-Z0-9\-_]+)\]\]/
 			);
 			const bib_key = bib_key_match
 				? bib_key_match[1] || bib_key_match[2]
 				: undefined;
-			const published_result_name = yaml.published_result_name;
+			const published_result_name = yaml.typst_published_name;
 			if (bib_key && typeof published_result_name === "string") {
 				const citation = new Citation(
 					bib_key,
@@ -975,13 +975,13 @@ export class UnrolledWikilink implements node {
 		) {
 			const file_contents = await this.unroll_data.read_tfile(file);
 			const [yaml] = parse_yaml_header(file_contents);
-			const bib_key_match = yaml.source?.match(
+			const bib_key_match = yaml.typst_source?.match(
 				/@([a-zA-Z0-9\-_]+)|\[\[@([a-zA-Z0-9\-_]+)\]\]/
 			);
 			const bib_key = bib_key_match
 				? bib_key_match[1] || bib_key_match[2]
 				: undefined;
-			const published_result_name = yaml.published_result_name;
+			const published_result_name = yaml.typst_published_name;
 			if (bib_key && typeof published_result_name === "string") {
 				const citation = new Citation(
 					bib_key,

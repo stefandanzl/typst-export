@@ -20,9 +20,125 @@ export class TypstExportSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// General Settings
-		containerEl.createEl("h3", { text: "General Settings" });
+		// Order: 6, 2, 3, 4, 1, 7, 8, 5
+		// Then Advanced Parsing Options section
 
+		// 6. Header names for template sections
+		new Setting(containerEl)
+			.setName("Header names for template sections")
+			.setDesc(
+				"Add the names of the sections that should be included in the template. The default values are 'abstract' and 'appendix'. Don't add 'body' to the list, as it is always included in the template. Values can then be referenced in template files for example as {{abstract}}."
+			);
+
+		// Display existing section names with remove buttons
+		this.plugin.settings.sectionTemplateNames.forEach(
+			(sectionName, index) => {
+				new Setting(containerEl)
+					.setClass("section-template-item")
+					.setName(sectionName)
+					.addButton((button) =>
+						button
+							.setButtonText("Remove")
+							.setWarning()
+							.onClick(async () => {
+								this.plugin.settings.sectionTemplateNames.splice(
+									index,
+									1
+								);
+								await this.plugin.saveSettings();
+								this.display(); // Refresh the display
+							})
+					);
+			}
+		);
+
+		// Add new section name
+		new Setting(containerEl)
+			.setClass("section-template-add")
+			.addText((text) =>
+				text.setPlaceholder("Enter section name").onChange((value) => {
+					text.inputEl.dataset.value = value;
+				})
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Add")
+					.setCta()
+					.onClick(async () => {
+						const input = containerEl.querySelector(
+							".section-template-add input"
+						) as HTMLInputElement;
+						const value = input?.dataset.value?.trim();
+						if (value && value !== "") {
+							if (
+								!this.plugin.settings.sectionTemplateNames.includes(
+									value
+								)
+							) {
+								this.plugin.settings.sectionTemplateNames.push(
+									value
+								);
+								await this.plugin.saveSettings();
+								this.display(); // Refresh the display
+							} else {
+								new Notice(`Section "${value}" already exists`);
+							}
+						}
+					})
+			);
+
+		// 2. Typst template file
+		new Setting(containerEl)
+			.setName("Typst template file")
+			.setDesc(
+				"Relative vault path to a Typst template file. Can be overridden per-document with frontmatter key 'typst_template'."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/template_file.typ")
+					.setValue(this.plugin.settings.typst_template_path)
+					.onChange(async (value) => {
+						this.plugin.settings.typst_template_path =
+							normalizePath(value || "");
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// 3. Typst template folder
+		new Setting(containerEl)
+			.setName("Typst template folder")
+			.setDesc(
+				"Relative vault path to a folder containing Typst template files (e.g., .typ files, images, etc.). The entire folder contents will be copied to the export directory. Can be overridden with frontmatter key 'typst_template_folder'."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/typst_template_folder/")
+					.setValue(this.plugin.settings.typst_template_folder)
+					.onChange(async (value) => {
+						this.plugin.settings.typst_template_folder =
+							normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// 4. Bibliography file
+		new Setting(containerEl)
+			.setName("Bibliography file")
+			.setDesc(
+				"Vault relative path to a bibliography file. Example: 'bibliography.bib' or 'refs/my-references.bib'. Can be overridden with frontmatter key 'typst_bib'."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path/to/bib_file.bib")
+					.setValue(this.plugin.settings.bib_file)
+					.onChange(async (value) => {
+						this.plugin.settings.bib_file =
+							value.trim() === "" ? "" : normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// 1. Output folder
 		new Setting(containerEl)
 			.setName("Output folder")
 			.setDesc(
@@ -33,41 +149,76 @@ export class TypstExportSettingTab extends PluginSettingTab {
 					.setPlaceholder("path/to/output_folder/")
 					.setValue(this.plugin.settings.base_output_folder)
 					.onChange(async (value) => {
-						/*
-						const match = /^(?:\/|\/?(.*?)\/?)$/.exec(value);
-						if (match) {
-							if (match[1] === undefined) {
-								value = "/";
-							} else {
-								value = match[1];
-							}
-						} */
 						this.plugin.settings.base_output_folder = value;
 						console.log("Base output folder set to:", value);
-						// Ensure the path is normalized
-						// normalizePath(value);
 						await this.plugin.saveSettings();
 					})
 			);
 
+		// 7. Replace existing files
 		new Setting(containerEl)
-			.setName("Header names for template sections")
+			.setName("Replace existing files")
 			.setDesc(
-				"Add the names of the sections that should be included in the template. The default is 'body, abstract, appendix'. Don't add body to the list, as it is always included in the template."
+				"Whether to replace already existing files during export. If disabled, existing files will be preserved and not overwritten."
 			)
-			.addText((text) =>
-				text
-					.setPlaceholder("abstract,appendix")
-					.setValue(
-						this.plugin.settings.sectionTemplateNames.join(",")
-					)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.replace_existing_files)
 					.onChange(async (value) => {
-						this.plugin.settings.sectionTemplateNames = value
-							.split(",")
-							.map((s) => s.trim());
+						this.plugin.settings.replace_existing_files = value;
 						await this.plugin.saveSettings();
 					})
 			);
+
+		// 8. Last external folder
+		new Setting(containerEl)
+			.setName("Last external folder")
+			.setDesc(
+				"The last used external folder for exports. Updated automatically when exporting externally."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder(
+						"Last used external folder (e.g., /home/user/typst)"
+					)
+					.setValue(this.plugin.settings.last_external_folder)
+					.onChange(async (value) => {
+						this.plugin.settings.last_external_folder =
+							normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// 5. Typst post-conversion command
+		new Setting(containerEl)
+			.setName("Typst post-conversion command")
+			.setDesc(
+				"Command to run after converting to Typst. Use $filepath as placeholder for the absolute path to the generated .typ file. Example: 'typst compile $filepath'"
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("typst compile $filepath")
+					.setValue(this.plugin.settings.typst_post_command)
+					.onChange(async (value) => {
+						this.plugin.settings.typst_post_command = value;
+						await this.plugin.saveSettings();
+					})
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Test")
+					.setTooltip(
+						"Test the command (replaces $filepath with a sample path)"
+					)
+					.onClick(async () => {
+						await this.testPostCommand(
+							this.plugin.settings.typst_post_command
+						);
+					})
+			);
+
+		// Advanced Parsing Options
+		containerEl.createEl("h3", { text: "Advanced Parsing Options" });
 
 		new Setting(containerEl)
 			.setName("Prioritize lists over equations")
@@ -86,7 +237,7 @@ export class TypstExportSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Display environment names")
 			.setDesc(
-				"Set display attribute of the wikilink as the visible name of the environment. If no display value is found, the value of the yaml entry 'env_title' will be used. If that is not found, use the file name if 'Default environment title to file names' is set. Setting any such field to an empty string specifies the absence of a title."
+				"Set display attribute of the wikilink as the visible name of the environment. If no display value is found, the value of the frontmatter entry 'typst_title' will be used. If that is not found, use the file name if 'Default environment title to file name' is set. Setting any such field to an empty string specifies the absence of a title."
 			)
 			.addToggle((cb) =>
 				cb
@@ -113,112 +264,6 @@ export class TypstExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-
-		new Setting(containerEl)
-			.setName("Last external folder")
-			.setDesc(
-				"The last used external folder for exports. Updated automatically when exporting externally."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder(
-						"Last used external folder (e.g., /home/user/typst)"
-					)
-					.setValue(this.plugin.settings.last_external_folder)
-					.onChange(async (value) => {
-						this.plugin.settings.last_external_folder =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Replace existing files")
-			.setDesc(
-				"Whether to replace already existing files during export. If disabled, existing files will be preserved and not overwritten."
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.replace_existing_files)
-					.onChange(async (value) => {
-						this.plugin.settings.replace_existing_files = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// Typst-specific settings
-		containerEl.createEl("h3", { text: "Typst Settings" });
-
-		new Setting(containerEl)
-			.setName("Typst template file")
-			.setDesc(
-				"Relative vault path to a Typst template file. Only set this if you would like to export with a custom Typst template."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/template_file.typ")
-					.setValue(this.plugin.settings.typst_template_path)
-					.onChange(async (value) => {
-						this.plugin.settings.typst_template_path =
-							normalizePath(value || "");
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Typst template folder")
-			.setDesc(
-				"Relative vault path to a folder containing Typst template files (e.g., .typ files, images, etc.). The entire folder contents will be copied to the export directory."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/typst_template_folder/")
-					.setValue(this.plugin.settings.typst_template_folder)
-					.onChange(async (value) => {
-						this.plugin.settings.typst_template_folder =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Typst post-conversion command")
-			.setDesc(
-				"Command to run after converting to Typst. Use $filepath as placeholder for the absolute path to the generated .typ file. Example: 'typst compile $filepath'"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("typst compile $filepath")
-					.setValue(this.plugin.settings.typst_post_command)
-					.onChange(async (value) => {
-						this.plugin.settings.typst_post_command = value;
-						await this.plugin.saveSettings();
-					})
-			)
-			.addButton((button) =>
-				button
-					.setButtonText("Test")
-					.setTooltip("Test the command (replaces $filepath with a sample path)")
-					.onClick(async () => {
-						await this.testPostCommand(this.plugin.settings.typst_post_command);
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Bibliography file")
-			.setDesc(
-				"Vault relative path to a bibliography file in your vault. Example: 'bibliography.bib' or 'refs/my-references.bib'. Leave empty if you don't have a bibliography file."
-			)
-			.addText((text) =>
-			text
-				.setPlaceholder("path/to/bib_file.bib")
-				.setValue(this.plugin.settings.bib_file)
-				.onChange(async (value) => {
-					// Don't normalize empty string to "/"
-					this.plugin.settings.bib_file = value.trim() === "" ? "" : normalizePath(value);
-					await this.plugin.saveSettings();
-				})
-		);
 	}
 
 	/**
@@ -245,9 +290,9 @@ export class TypstExportSettingTab extends PluginSettingTab {
 			console.log("Original command:", command);
 			console.log("Test file path:", testFilePath);
 			console.log("Final test command:", testCommand);
-
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			new Notice(`Command test failed: ${errorMessage}`);
 			console.error("Command test error:", error);
 		}

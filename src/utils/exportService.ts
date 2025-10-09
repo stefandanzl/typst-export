@@ -29,6 +29,98 @@ export class ExportService {
 	}
 
 	/**
+	 * Resolve template file path from frontmatter or settings
+	 */
+	private resolveTemplatePath(frontmatter: { [key: string]: string }, settings: ExportPluginSettings): string {
+		// Check frontmatter first (main file only)
+		if ('typst_template' in frontmatter) {
+			const path = frontmatter.typst_template;
+
+			if (path === "" || path === null || path === undefined) {
+				new Notice("⚠️ Template file path in frontmatter is empty");
+				return "";
+			}
+
+			const file = this.app.vault.getFileByPath(path);
+			if (!file) {
+				new Notice(`⚠️ Template file not found: ${path} (from frontmatter)`);
+				return "";
+			}
+
+			return path;
+		}
+
+		// Fall back to settings
+		if (settings.typst_template_path && settings.typst_template_path !== "") {
+			const file = this.app.vault.getFileByPath(settings.typst_template_path);
+			if (!file) {
+				new Notice(`⚠️ Template file not found: ${settings.typst_template_path} (from settings)`);
+				return "";
+			}
+			return settings.typst_template_path;
+		}
+
+		// No template specified - use default
+		return "";
+	}
+
+	/**
+	 * Resolve template folder path from frontmatter or settings
+	 */
+	private resolveTemplateFolderPath(frontmatter: { [key: string]: string }, settings: ExportPluginSettings): string {
+		// Check frontmatter first
+		if ('typst_template_folder' in frontmatter) {
+			const path = frontmatter.typst_template_folder;
+
+			if (path === "" || path === null || path === undefined) {
+				new Notice("⚠️ Template folder path in frontmatter is empty");
+				return "";
+			}
+
+			return path;
+		}
+
+		// Fall back to settings
+		return settings.typst_template_folder || "";
+	}
+
+	/**
+	 * Resolve bibliography file path from frontmatter or settings
+	 */
+	private resolveBibPath(frontmatter: { [key: string]: string }, settings: ExportPluginSettings): string {
+		// Check frontmatter first
+		if ('typst_bib' in frontmatter) {
+			const path = frontmatter.typst_bib;
+
+			if (path === "" || path === null || path === undefined) {
+				new Notice("⚠️ Bibliography file path in frontmatter is empty");
+				return "";
+			}
+
+			const file = this.app.vault.getFileByPath(path);
+			if (!file) {
+				new Notice(`⚠️ Bibliography file not found: ${path} (from frontmatter)`);
+				return "";
+			}
+
+			return path;
+		}
+
+		// Fall back to settings
+		if (settings.bib_file && settings.bib_file !== "") {
+			const file = this.app.vault.getFileByPath(settings.bib_file);
+			if (!file) {
+				new Notice(`⚠️ Bibliography file not found: ${settings.bib_file} (from settings)`);
+				return "";
+			}
+			return settings.bib_file;
+		}
+
+		// No bib file specified
+		return "";
+	}
+
+	/**
 	 * Exports a file to an external folder
 	 */
 	async exportToExternalFolder(config: ExportConfig): Promise<ExportResult> {
@@ -68,8 +160,9 @@ export class ExportService {
 			);
 
 			// 1. Handle template folder first (foundation)
+			const templateFolderPath = this.resolveTemplateFolderPath(parsedContents.yaml, settings);
 			await this.fileManager.handleTemplateFolderExternal(
-				settings.typst_template_folder,
+				templateFolderPath,
 				exportPaths.outputFolderPath,
 				messageBuilder
 			);
@@ -82,18 +175,22 @@ export class ExportService {
 			);
 
 			// 3. Handle supporting files (can override template defaults)
+			const bibFilePath = this.resolveBibPath(parsedContents.yaml, settings);
 			await this.handleSupportingFilesExternal(
 				parsedContents,
 				exportPaths,
 				settings,
-				messageBuilder
+				messageBuilder,
+				bibFilePath
 			);
 
 			// 4. Write the main output file (mainmd.tex) last
+			const templateFilePath = this.resolveTemplatePath(parsedContents.yaml, settings);
 			await this.writeMainOutputFileExternal(
 				parsedContents,
 				exportPaths,
-				settings
+				settings,
+				templateFilePath
 			);
 
 			// 5. Execute post-conversion command if specified
@@ -165,8 +262,9 @@ export class ExportService {
 			);
 
 			// 1. Handle template folder first (foundation)
+			const templateFolderPath = this.resolveTemplateFolderPath(parsedContents.yaml, settings);
 			await this.fileManager.handleTemplateFolderVault(
-				settings.typst_template_folder,
+				templateFolderPath,
 				exportPaths.outputFolderPath,
 				messageBuilder
 			);
@@ -179,11 +277,13 @@ export class ExportService {
 			);
 
 			// 3. Handle supporting files (can override template defaults)
+			const bibFilePath = this.resolveBibPath(parsedContents.yaml, settings);
 			await this.handleSupportingFilesVault(
 				parsedContents,
 				exportPaths,
 				settings,
-				messageBuilder
+				messageBuilder,
+				bibFilePath
 			);
 
 			// 4. Check if output file exists and handle accordingly
@@ -213,10 +313,12 @@ export class ExportService {
 			}
 
 			// 5. Write the main output file (mainmd.tex) last
+			const templateFilePath = this.resolveTemplatePath(parsedContents.yaml, settings);
 			await this.writeMainOutputFileVault(
 				parsedContents,
 				outputFile,
-				settings
+				settings,
+				templateFilePath
 			);
 
 			// 6. Execute post-conversion command if specified (convert vault path to absolute)
@@ -290,7 +392,8 @@ export class ExportService {
 		parsedContents: parsed_longform,
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		bibFilePath: string
 	): Promise<void> {
 		// Handle header file
 		await this.fileManager.handleHeaderFileExternal(
@@ -301,7 +404,7 @@ export class ExportService {
 		);
 
 		// Handle bibliography file
-		const bibFile = this.app.vault.getFileByPath(settings.bib_file);
+		const bibFile = bibFilePath ? this.app.vault.getFileByPath(bibFilePath) : undefined;
 		await this.fileManager.handleBibFileExternal(
 			bibFile || undefined,
 			exportPaths.bibPath,
@@ -316,7 +419,8 @@ export class ExportService {
 		parsedContents: parsed_longform,
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		bibFilePath: string
 	): Promise<void> {
 		// Handle header file
 		await this.fileManager.handleHeaderFileVault(
@@ -327,7 +431,7 @@ export class ExportService {
 		);
 
 		// Handle bibliography file
-		const bibFile = this.app.vault.getFileByPath(settings.bib_file);
+		const bibFile = bibFilePath ? this.app.vault.getFileByPath(bibFilePath) : undefined;
 		await this.fileManager.handleBibFileVault(
 			bibFile || undefined,
 			exportPaths.bibPath,
@@ -341,7 +445,8 @@ export class ExportService {
 	private async writeMainOutputFileExternal(
 		parsedContents: parsed_longform,
 		exportPaths: ExportPaths,
-		settings: ExportPluginSettings
+		settings: ExportPluginSettings,
+		templateFilePath: string
 	): Promise<void> {
 		// Check if file exists and respect replace_existing_files setting
 		if (!settings.replace_existing_files && FileOperations.fileExists(exportPaths.outputFilePath)) {
@@ -349,7 +454,7 @@ export class ExportService {
 			return;
 		}
 
-		const templateFile = this.app.vault.getFileByPath(settings.typst_template_path);
+		const templateFile = templateFilePath ? this.app.vault.getFileByPath(templateFilePath) : undefined;
 		let templateContent = DEFAULT_TYPST_TEMPLATE;
 
 		if (templateFile) {
@@ -374,9 +479,10 @@ export class ExportService {
 	private async writeMainOutputFileVault(
 		parsedContents: parsed_longform,
 		outputFile: TFile,
-		settings: ExportPluginSettings
+		settings: ExportPluginSettings,
+		templateFilePath: string
 	): Promise<void> {
-		const templateFile = this.app.vault.getFileByPath(settings.typst_template_path);
+		const templateFile = templateFilePath ? this.app.vault.getFileByPath(templateFilePath) : undefined;
 		let templateContent = DEFAULT_TYPST_TEMPLATE;
 
 		if (templateFile) {
