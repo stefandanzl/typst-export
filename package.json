@@ -1,6 +1,6 @@
 {
 	"name": "typst-export",
-	"version": "0.1.1",
+	"version": "1.0.0",
 	"description": "Obsidian plugin to export with typst.",
 	"main": "main.js",
 	"scripts": {
