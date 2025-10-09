@@ -10,10 +10,7 @@ import {
 	write_with_template,
 	parsed_longform,
 } from "../export_longform";
-import {
-	DEFAULT_TYPST_TEMPLATE,
-} from "../export_longform/interfaces";
-
+import { DEFAULT_TYPST_TEMPLATE } from "../export_longform/interfaces";
 
 /**
  * Service for handling export operations
@@ -31,9 +28,12 @@ export class ExportService {
 	/**
 	 * Resolve template file path from frontmatter or settings
 	 */
-	private resolveTemplatePath(frontmatter: { [key: string]: string }, settings: ExportPluginSettings): string {
+	private resolveTemplatePath(
+		frontmatter: { [key: string]: string },
+		settings: ExportPluginSettings
+	): string {
 		// Check frontmatter first (main file only)
-		if ('typst_template' in frontmatter) {
+		if ("typst_template" in frontmatter) {
 			const path = frontmatter.typst_template;
 
 			if (path === "" || path === null || path === undefined) {
@@ -44,7 +44,9 @@ export class ExportService {
 			const normalizedPath = normalizePath(path);
 			const file = this.app.vault.getFileByPath(normalizedPath);
 			if (!file) {
-				new Notice(`⚠️ Template file not found: ${normalizedPath} (from frontmatter)`);
+				new Notice(
+					`⚠️ Template file not found: ${normalizedPath} (from frontmatter)`
+				);
 				return "";
 			}
 
@@ -52,10 +54,17 @@ export class ExportService {
 		}
 
 		// Fall back to settings
-		if (settings.typst_template_path && settings.typst_template_path !== "") {
-			const file = this.app.vault.getFileByPath(settings.typst_template_path);
+		if (
+			settings.typst_template_path &&
+			settings.typst_template_path !== ""
+		) {
+			const file = this.app.vault.getFileByPath(
+				settings.typst_template_path
+			);
 			if (!file) {
-				new Notice(`⚠️ Template file not found: ${settings.typst_template_path} (from settings)`);
+				new Notice(
+					`⚠️ Template file not found: ${settings.typst_template_path} (from settings)`
+				);
 				return "";
 			}
 			return settings.typst_template_path;
@@ -68,9 +77,12 @@ export class ExportService {
 	/**
 	 * Resolve template folder path from frontmatter or settings
 	 */
-	private resolveTemplateFolderPath(frontmatter: { [key: string]: string }, settings: ExportPluginSettings): string {
+	private resolveTemplateFolderPath(
+		frontmatter: { [key: string]: string },
+		settings: ExportPluginSettings
+	): string {
 		// Check frontmatter first
-		if ('typst_template_folder' in frontmatter) {
+		if ("typst_template_folder" in frontmatter) {
 			const path = frontmatter.typst_template_folder;
 
 			if (path === "" || path === null || path === undefined) {
@@ -88,9 +100,12 @@ export class ExportService {
 	/**
 	 * Resolve bibliography file path from frontmatter or settings
 	 */
-	private resolveBibPath(frontmatter: { [key: string]: string }, settings: ExportPluginSettings): string {
+	private resolveBibPath(
+		frontmatter: { [key: string]: string },
+		settings: ExportPluginSettings
+	): string {
 		// Check frontmatter first
-		if ('typst_bib' in frontmatter) {
+		if ("typst_bib" in frontmatter) {
 			const path = frontmatter.typst_bib;
 
 			if (path === "" || path === null || path === undefined) {
@@ -101,7 +116,9 @@ export class ExportService {
 			const normalizedPath = normalizePath(path);
 			const file = this.app.vault.getFileByPath(normalizedPath);
 			if (!file) {
-				new Notice(`⚠️ Bibliography file not found: ${normalizedPath} (from frontmatter)`);
+				new Notice(
+					`⚠️ Bibliography file not found: ${normalizedPath} (from frontmatter)`
+				);
 				return "";
 			}
 
@@ -112,7 +129,9 @@ export class ExportService {
 		if (settings.bib_file && settings.bib_file !== "") {
 			const file = this.app.vault.getFileByPath(settings.bib_file);
 			if (!file) {
-				new Notice(`⚠️ Bibliography file not found: ${settings.bib_file} (from settings)`);
+				new Notice(
+					`⚠️ Bibliography file not found: ${settings.bib_file} (from settings)`
+				);
 				return "";
 			}
 			return settings.bib_file;
@@ -154,7 +173,10 @@ export class ExportService {
 			);
 
 			// Create output folder
-			FileOperations.ensureDirectoryExists(exportPaths.outputFolderPath);
+			await FileOperations.ensureDirectoryExists(
+				this.app.vault.adapter as FileSystemAdapter,
+				exportPaths.outputFolderPath
+			);
 
 			// Build export message
 			const messageBuilder = new ExportMessageBuilder(
@@ -162,7 +184,10 @@ export class ExportService {
 			);
 
 			// 1. Handle template folder first (foundation)
-			const templateFolderPath = this.resolveTemplateFolderPath(parsedContents.yaml, settings);
+			const templateFolderPath = this.resolveTemplateFolderPath(
+				parsedContents.yaml,
+				settings
+			);
 			await this.fileManager.handleTemplateFolderExternal(
 				templateFolderPath,
 				exportPaths.outputFolderPath,
@@ -177,7 +202,10 @@ export class ExportService {
 			);
 
 			// 3. Handle supporting files (can override template defaults)
-			const bibFilePath = this.resolveBibPath(parsedContents.yaml, settings);
+			const bibFilePath = this.resolveBibPath(
+				parsedContents.yaml,
+				settings
+			);
 			await this.handleSupportingFilesExternal(
 				parsedContents,
 				exportPaths,
@@ -187,7 +215,10 @@ export class ExportService {
 			);
 
 			// 4. Write the main output file (mainmd.tex) last
-			const templateFilePath = this.resolveTemplatePath(parsedContents.yaml, settings);
+			const templateFilePath = this.resolveTemplatePath(
+				parsedContents.yaml,
+				settings
+			);
 			await this.writeMainOutputFileExternal(
 				parsedContents,
 				exportPaths,
@@ -252,14 +283,19 @@ export class ExportService {
 			);
 
 			// Create output folder if it doesn't exist
-			const existingFolder = this.app.vault.getAbstractFileByPath(exportPaths.outputFolderPath);
+			const existingFolder = this.app.vault.getAbstractFileByPath(
+				exportPaths.outputFolderPath
+			);
 			if (!existingFolder) {
 				await this.app.vault
 					.createFolder(exportPaths.outputFolderPath)
 					.catch((error) => {
 						// Ignore EEXIST errors - folder already exists
-						if (!error.message?.includes('Folder already exists')) {
-							console.error("Failed to create output folder:", error);
+						if (!error.message?.includes("Folder already exists")) {
+							console.error(
+								"Failed to create output folder:",
+								error
+							);
 						}
 					});
 			}
@@ -270,7 +306,10 @@ export class ExportService {
 			);
 
 			// 1. Handle template folder first (foundation)
-			const templateFolderPath = this.resolveTemplateFolderPath(parsedContents.yaml, settings);
+			const templateFolderPath = this.resolveTemplateFolderPath(
+				parsedContents.yaml,
+				settings
+			);
 			await this.fileManager.handleTemplateFolderVault(
 				templateFolderPath,
 				exportPaths.outputFolderPath,
@@ -286,7 +325,10 @@ export class ExportService {
 			);
 
 			// 3. Handle supporting files (can override template defaults)
-			const bibFilePath = this.resolveBibPath(parsedContents.yaml, settings);
+			const bibFilePath = this.resolveBibPath(
+				parsedContents.yaml,
+				settings
+			);
 			await this.handleSupportingFilesVault(
 				parsedContents,
 				exportPaths,
@@ -313,7 +355,9 @@ export class ExportService {
 				);
 			} else {
 				// Keep existing file, skip writing
-				new Notice(`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`);
+				new Notice(
+					`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`
+				);
 				return {
 					success: true,
 					message: `Export skipped - file exists: ${exportPaths.outputFilePath}`,
@@ -322,7 +366,10 @@ export class ExportService {
 			}
 
 			// 5. Write the main output file (mainmd.tex) last
-			const templateFilePath = this.resolveTemplatePath(parsedContents.yaml, settings);
+			const templateFilePath = this.resolveTemplatePath(
+				parsedContents.yaml,
+				settings
+			);
 			await this.writeMainOutputFileVault(
 				parsedContents,
 				outputFile,
@@ -332,7 +379,9 @@ export class ExportService {
 
 			// 6. Execute post-conversion command if specified (convert vault path to absolute)
 			const vaultAdapter = this.app.vault.adapter as any;
-			const absolutePath = vaultAdapter.getFullPath ? vaultAdapter.getFullPath(exportPaths.outputFilePath) : exportPaths.outputFilePath;
+			const absolutePath = vaultAdapter.getFullPath
+				? vaultAdapter.getFullPath(exportPaths.outputFilePath)
+				: exportPaths.outputFilePath;
 			await this.executePostCommand(absolutePath, settings);
 
 			const finalMessage = messageBuilder.build(
@@ -413,7 +462,9 @@ export class ExportService {
 		);
 
 		// Handle bibliography file
-		const bibFile = bibFilePath ? this.app.vault.getFileByPath(bibFilePath) : undefined;
+		const bibFile = bibFilePath
+			? this.app.vault.getFileByPath(bibFilePath)
+			: undefined;
 		await this.fileManager.handleBibFileExternal(
 			bibFile || undefined,
 			exportPaths.bibPath,
@@ -441,7 +492,9 @@ export class ExportService {
 		);
 
 		// Handle bibliography file
-		const bibFile = bibFilePath ? this.app.vault.getFileByPath(bibFilePath) : undefined;
+		const bibFile = bibFilePath
+			? this.app.vault.getFileByPath(bibFilePath)
+			: undefined;
 		await this.fileManager.handleBibFileVault(
 			bibFile || undefined,
 			exportPaths.bibPath,
@@ -460,12 +513,22 @@ export class ExportService {
 		templateFilePath: string
 	): Promise<void> {
 		// Check if file exists and respect replace_existing_files setting
-		if (!settings.replace_existing_files && FileOperations.fileExists(exportPaths.outputFilePath)) {
-			console.log(`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`);
+		if (
+			!settings.replace_existing_files &&
+			(await FileOperations.fileExists(
+				this.app.vault.adapter as FileSystemAdapter,
+				exportPaths.outputFilePath
+			))
+		) {
+			console.log(
+				`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`
+			);
 			return;
 		}
 
-		const templateFile = templateFilePath ? this.app.vault.getFileByPath(templateFilePath) : undefined;
+		const templateFile = templateFilePath
+			? this.app.vault.getFileByPath(templateFilePath)
+			: undefined;
 		let templateContent = DEFAULT_TYPST_TEMPLATE;
 
 		if (templateFile) {
@@ -478,7 +541,11 @@ export class ExportService {
 			settings.sectionTemplateNames,
 			{ path: exportPaths.outputFilePath } as TFile,
 			async (_file, content) =>
-				FileOperations.writeFile(exportPaths.outputFilePath, content),
+				FileOperations.writeFile(
+					this.app.vault.adapter as FileSystemAdapter,
+					exportPaths.outputFilePath,
+					content
+				),
 			undefined,
 			undefined
 		);
@@ -493,7 +560,9 @@ export class ExportService {
 		settings: ExportPluginSettings,
 		templateFilePath: string
 	): Promise<void> {
-		const templateFile = templateFilePath ? this.app.vault.getFileByPath(templateFilePath) : undefined;
+		const templateFile = templateFilePath
+			? this.app.vault.getFileByPath(templateFilePath)
+			: undefined;
 		let templateContent = DEFAULT_TYPST_TEMPLATE;
 
 		if (templateFile) {
@@ -577,7 +646,10 @@ export class ExportService {
 	/**
 	 * Execute post-conversion command if specified
 	 */
-	private async executePostCommand(outputFilePath: string, settings: ExportPluginSettings): Promise<void> {
+	private async executePostCommand(
+		outputFilePath: string,
+		settings: ExportPluginSettings
+	): Promise<void> {
 		const command = settings.typst_post_command;
 
 		if (!command || command.trim() === "") {
@@ -588,30 +660,30 @@ export class ExportService {
 			// Replace the placeholder with the actual output file path
 			console.log(`Original command: ${command}`);
 			console.log(`Output file path: ${outputFilePath}`);
-			
+
 			const finalCommand = command.replace(/\$filepath/g, outputFilePath);
-			
+
 			console.log(`Final command after replacement: ${finalCommand}`);
-			
+
 			// Import required modules for command execution
-			const { exec } = require('child_process');
-			const util = require('util');
+			const { exec } = require("child_process");
+			const util = require("util");
 			const execPromise = util.promisify(exec);
 
 			// Execute the command
 			const { stdout, stderr } = await execPromise(finalCommand);
-			
+
 			if (stdout) {
-				console.log('Command output:', stdout);
+				console.log("Command output:", stdout);
 			}
 			if (stderr) {
-				console.warn('Command stderr:', stderr);
+				console.warn("Command stderr:", stderr);
 			}
 
 			new Notice(`Post-conversion command executed successfully`);
-			
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			console.error("Post-conversion command failed:", error);
 			console.error("Command was:", command);
 			console.error("Output file path was:", outputFilePath);

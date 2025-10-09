@@ -1,13 +1,13 @@
 import * as path from "path";
-import { TFile, FileSystemAdapter, Vault } from "obsidian";
+import { TFile, FileSystemAdapter, Vault, normalizePath } from "obsidian";
 import { FileOperations } from "./fileOperations";
 import { ExportMessageBuilder } from "./messageBuilder";
 import { EXPORT_FILE_NAMES } from "./constants";
-import { 
-	FileCopyConfig, 
-	FileOperationResult, 
-	ExportPaths, 
-	MediaFileProcessingResult 
+import {
+	FileCopyConfig,
+	FileOperationResult,
+	ExportPaths,
+	MediaFileProcessingResult,
 } from "./interfaces";
 import { ExportPluginSettings, parsed_longform } from "../export_longform";
 import { get_header_tex } from "../export_longform/get_header_tex";
@@ -31,19 +31,29 @@ export class FileManagementService {
 		replaceExisting: boolean = true
 	): Promise<void> {
 		if (!preambleFile) {
-			messageBuilder.addPreambleMessage('not_found');
+			messageBuilder.addPreambleMessage("not_found");
 			return;
 		}
 
-		const preambleExists = FileOperations.fileExists(preamblePath);
-		
+		const preambleExists = await FileOperations.fileExists(
+			this.vaultAdapter,
+			preamblePath
+		);
+
 		if (preambleExists && !replaceExisting) {
-			messageBuilder.addPreambleMessage('none');
+			messageBuilder.addPreambleMessage("none");
 			return;
 		}
-		
-		FileOperations.copyFileToExternal(this.vaultAdapter, preambleFile, preamblePath);
-		messageBuilder.addPreambleMessage(preambleExists ? 'overwriting' : 'copying');
+
+		await FileOperations.copyFileToExternal(
+			this.vault,
+			this.vaultAdapter,
+			preambleFile,
+			preamblePath
+		);
+		messageBuilder.addPreambleMessage(
+			preambleExists ? "overwriting" : "copying"
+		);
 	}
 
 	/**
@@ -56,22 +66,22 @@ export class FileManagementService {
 		replaceExisting: boolean = true
 	): Promise<void> {
 		if (!preambleFile) {
-			messageBuilder.addPreambleMessage('not_found');
+			messageBuilder.addPreambleMessage("not_found");
 			return;
 		}
 
 		const existingPreamble = this.vault.getFileByPath(preamblePath);
-		
+
 		if (existingPreamble && !replaceExisting) {
-			messageBuilder.addPreambleMessage('none');
+			messageBuilder.addPreambleMessage("none");
 			return;
 		}
-		
+
 		if (existingPreamble) {
 			await this.vault.delete(existingPreamble);
-			messageBuilder.addPreambleMessage('overwriting');
+			messageBuilder.addPreambleMessage("overwriting");
 		} else {
-			messageBuilder.addPreambleMessage('copying');
+			messageBuilder.addPreambleMessage("copying");
 		}
 		await this.vault.copy(preambleFile, preamblePath);
 	}
@@ -95,16 +105,25 @@ export class FileManagementService {
 		if (exportFormat === "typst") {
 			return;
 		}
-		
-		const headerExists = FileOperations.fileExists(headerPath);
-		
+
+		const headerExists = await FileOperations.fileExists(
+			this.vaultAdapter,
+			headerPath
+		);
+
 		if (headerExists && !replaceExisting) {
-			messageBuilder.addHeaderMessage('none');
+			messageBuilder.addHeaderMessage("none");
 			return;
 		}
-		
-		FileOperations.writeFile(headerPath, get_header_tex());
-		messageBuilder.addHeaderMessage(headerExists ? 'overwriting' : 'creating');
+
+		await FileOperations.writeFile(
+			this.vaultAdapter,
+			headerPath,
+			get_header_tex()
+		);
+		messageBuilder.addHeaderMessage(
+			headerExists ? "overwriting" : "creating"
+		);
 	}
 
 	/**
@@ -126,19 +145,19 @@ export class FileManagementService {
 		if (exportFormat === "typst") {
 			return;
 		}
-		
+
 		const headerFile = this.vault.getFileByPath(headerPath);
-		
+
 		if (headerFile && !replaceExisting) {
-			messageBuilder.addHeaderMessage('none');
+			messageBuilder.addHeaderMessage("none");
 			return;
 		}
-		
+
 		if (headerFile) {
 			await this.vault.delete(headerFile);
-			messageBuilder.addHeaderMessage('overwriting');
+			messageBuilder.addHeaderMessage("overwriting");
 		} else {
-			messageBuilder.addHeaderMessage('creating');
+			messageBuilder.addHeaderMessage("creating");
 		}
 		await this.vault.create(headerPath, get_header_tex());
 	}
@@ -153,29 +172,29 @@ export class FileManagementService {
 		replaceExisting: boolean = true
 	): Promise<void> {
 		if (!bibFile) {
-			messageBuilder.addBibMessage('not_found');
+			messageBuilder.addBibMessage("not_found");
 			return;
 		}
 
-		const bibExists = FileOperations.fileExists(bibPath);
+		const bibExists = await FileOperations.fileExists(
+			this.vaultAdapter,
+			bibPath
+		);
 
 		if (bibExists && !replaceExisting) {
-			messageBuilder.addBibMessage('none');
+			messageBuilder.addBibMessage("none");
 			return;
 		}
 
-		if (bibExists) {
-			// Delete existing file first
-			try {
-				const fs = require('fs');
-				fs.unlinkSync(bibPath);
-			} catch (error) {
-				console.error(`Failed to delete existing bib file: ${bibPath}`, error);
-			}
-		}
+		// Note: No need to explicitly delete the file since copyFileToExternal will overwrite it
 
-		FileOperations.copyFileToExternal(this.vaultAdapter, bibFile, bibPath);
-		messageBuilder.addBibMessage('copying');
+		await FileOperations.copyFileToExternal(
+			this.vault,
+			this.vaultAdapter,
+			bibFile,
+			bibPath
+		);
+		messageBuilder.addBibMessage("copying");
 	}
 
 	/**
@@ -188,25 +207,29 @@ export class FileManagementService {
 		replaceExisting: boolean = true
 	): Promise<void> {
 		if (!bibFile) {
-			messageBuilder.addBibMessage('not_found');
+			messageBuilder.addBibMessage("not_found");
 			return;
 		}
 
-		const existingBib = this.vault.getFileByPath(bibPath);
+		const existingBib = this.vault.getFileByPath(normalizePath(bibPath));
+		console.debug("BIB1");
 
 		if (existingBib && !replaceExisting) {
-			messageBuilder.addBibMessage('none');
+			console.debug("BIB2");
+			messageBuilder.addBibMessage("none");
 			return;
 		}
 
 		if (!existingBib) {
+			console.debug("BIB3", existingBib);
 			await this.vault.copy(bibFile, bibPath);
-			messageBuilder.addBibMessage('copying');
+			messageBuilder.addBibMessage("copying");
 		} else {
+			console.debug("BIB4");
 			// Replace existing file
 			await this.vault.delete(existingBib);
 			await this.vault.copy(bibFile, bibPath);
-			messageBuilder.addBibMessage('copying'); // Use 'copying' since 'overwriting' is not available
+			messageBuilder.addBibMessage("copying"); // Use 'copying' since 'overwriting' is not available
 		}
 	}
 
@@ -220,11 +243,19 @@ export class FileManagementService {
 		replaceExisting: boolean = true
 	): Promise<MediaFileProcessingResult> {
 		if (mediaFiles.length === 0) {
-			return { copiedFiles: 0, overwrittenFiles: 0, skippedFiles: 0, errors: [] };
+			return {
+				copiedFiles: 0,
+				overwrittenFiles: 0,
+				skippedFiles: 0,
+				errors: [],
+			};
 		}
 
-		FileOperations.ensureDirectoryExists(attachmentsPath);
-		
+		await FileOperations.ensureDirectoryExists(
+			this.vaultAdapter,
+			attachmentsPath
+		);
+
 		let copiedFiles = 0;
 		let overwrittenFiles = 0;
 		let skippedFiles = 0;
@@ -232,33 +263,46 @@ export class FileManagementService {
 
 		for (const mediaFile of mediaFiles) {
 			try {
-				const destinationPath = path.join(attachmentsPath, mediaFile.name);
-				const fileExists = FileOperations.fileExists(destinationPath);
+				const destinationPath = path.join(
+					attachmentsPath,
+					mediaFile.name
+				);
+				const fileExists = await FileOperations.fileExists(
+					this.vaultAdapter,
+					destinationPath
+				);
 
 				if (fileExists && !replaceExisting) {
 					skippedFiles++;
 					continue;
 				}
-				
-				FileOperations.copyFileToExternal(this.vaultAdapter, mediaFile, destinationPath);
-				
+
+				await FileOperations.copyFileToExternal(
+					this.vault,
+					this.vaultAdapter,
+					mediaFile,
+					destinationPath
+				);
+
 				if (fileExists) {
 					overwrittenFiles++;
 				} else {
 					copiedFiles++;
 				}
 			} catch (error) {
-				errors.push(error instanceof Error ? error : new Error(String(error)));
+				errors.push(
+					error instanceof Error ? error : new Error(String(error))
+				);
 			}
 		}
 
 		// Add a single message about figure files
 		if (overwrittenFiles > 0 && copiedFiles > 0) {
-			messageBuilder.addFiguresMessage('copying'); // Mixed case, just say copying
+			messageBuilder.addFiguresMessage("copying"); // Mixed case, just say copying
 		} else if (overwrittenFiles > 0) {
-			messageBuilder.addFiguresMessage('overwriting');
+			messageBuilder.addFiguresMessage("overwriting");
 		} else if (copiedFiles > 0) {
-			messageBuilder.addFiguresMessage('copying');
+			messageBuilder.addFiguresMessage("copying");
 		}
 
 		return { copiedFiles, overwrittenFiles, skippedFiles, errors };
@@ -274,11 +318,16 @@ export class FileManagementService {
 		replaceExisting: boolean = true
 	): Promise<MediaFileProcessingResult> {
 		if (mediaFiles.length === 0) {
-			return { copiedFiles: 0, overwrittenFiles: 0, skippedFiles: 0, errors: [] };
+			return {
+				copiedFiles: 0,
+				overwrittenFiles: 0,
+				skippedFiles: 0,
+				errors: [],
+			};
 		}
 
 		await this.vault.createFolder(attachmentsPath).catch(() => {});
-		
+
 		let copiedFiles = 0;
 		let overwrittenFiles = 0;
 		let skippedFiles = 0;
@@ -286,14 +335,17 @@ export class FileManagementService {
 
 		for (const mediaFile of mediaFiles) {
 			try {
-				const destinationPath = path.join(attachmentsPath, mediaFile.name);
+				const destinationPath = path.join(
+					attachmentsPath,
+					mediaFile.name
+				);
 				const existingFile = this.vault.getFileByPath(destinationPath);
 
 				if (existingFile && !replaceExisting) {
 					skippedFiles++;
 					continue;
 				}
-				
+
 				if (existingFile) {
 					await this.vault.delete(existingFile);
 					overwrittenFiles++;
@@ -302,17 +354,19 @@ export class FileManagementService {
 				}
 				await this.vault.copy(mediaFile, destinationPath);
 			} catch (error) {
-				errors.push(error instanceof Error ? error : new Error(String(error)));
+				errors.push(
+					error instanceof Error ? error : new Error(String(error))
+				);
 			}
 		}
 
 		// Add a single message about figure files
 		if (overwrittenFiles > 0 && copiedFiles > 0) {
-			messageBuilder.addFiguresMessage('copying'); // Mixed case, just say copying
+			messageBuilder.addFiguresMessage("copying"); // Mixed case, just say copying
 		} else if (overwrittenFiles > 0) {
-			messageBuilder.addFiguresMessage('overwriting');
+			messageBuilder.addFiguresMessage("overwriting");
 		} else if (copiedFiles > 0) {
-			messageBuilder.addFiguresMessage('copying');
+			messageBuilder.addFiguresMessage("copying");
 		}
 
 		return { copiedFiles, overwrittenFiles, skippedFiles, errors };
@@ -331,37 +385,24 @@ export class FileManagementService {
 		}
 
 		try {
-			FileOperations.copyDirectoryToExternal(
+			await FileOperations.copyDirectoryToExternal(
+				this.vault,
 				this.vaultAdapter,
 				templateFolderPath,
 				outputFolderPath
 			);
-			messageBuilder.addCustomMessage("- Template folder copied successfully (files overwritten as needed)");
+			messageBuilder.addCustomMessage(
+				"- Template folder copied successfully (files overwritten as needed)"
+			);
 		} catch (error) {
 			console.error("Failed to copy template folder:", error);
 			// Provide more specific error information
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			if (errorMessage.includes('EEXIST')) {
-				messageBuilder.addCustomMessage("- Template folder: retrying with forced overwrite...");
-				// Try again with a more aggressive approach - this should now work with our improved copy method
-				try {
-					FileOperations.copyDirectoryToExternal(
-						this.vaultAdapter,
-						templateFolderPath,
-						outputFolderPath
-					);
-					messageBuilder.addCustomMessage("- Template folder copied successfully on retry");
-				} catch (retryError) {
-					messageBuilder.addCustomMessage("- Template folder: failed to copy some files (check file permissions)");
-					throw new Error(`Failed to copy template folder: ${retryError}`);
-				}
-			} else if (errorMessage.includes('ENOENT')) {
-				messageBuilder.addCustomMessage("- Template folder not found at specified path");
-				throw new Error(`Template folder not found: ${templateFolderPath}`);
-			} else {
-				messageBuilder.addCustomMessage("- Template folder copy failed with unexpected error");
-				throw error;
-			}
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			messageBuilder.addCustomMessage(
+				"- Template folder: failed to copy some files (check file permissions)"
+			);
+			throw new Error(`Failed to copy template folder: ${errorMessage}`);
 		}
 	}
 
@@ -383,14 +424,20 @@ export class FileManagementService {
 				templateFolderPath,
 				outputFolderPath
 			);
-			messageBuilder.addCustomMessage("- Template folder copied successfully (files overwritten as needed)");
+			messageBuilder.addCustomMessage(
+				"- Template folder copied successfully (files overwritten as needed)"
+			);
 		} catch (error) {
 			console.error("Failed to copy template folder:", error);
-			// Provide more specific error information  
-			if (error instanceof Error && error.message.includes('EEXIST')) {
-				messageBuilder.addCustomMessage("- Template folder: some files couldn't be overwritten (check permissions)");
+			// Provide more specific error information
+			if (error instanceof Error && error.message.includes("EEXIST")) {
+				messageBuilder.addCustomMessage(
+					"- Template folder: some files couldn't be overwritten (check permissions)"
+				);
 			} else {
-				messageBuilder.addCustomMessage("- Template folder not found or couldn't be copied");
+				messageBuilder.addCustomMessage(
+					"- Template folder not found or couldn't be copied"
+				);
 			}
 		}
 	}
