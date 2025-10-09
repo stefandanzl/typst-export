@@ -1,8 +1,8 @@
 {
 	"id": "typst-export",
 	"name": "Typst export",
-	"version": "0.1.11",
-	"minAppVersion": "0.15.0",
+	"version": "1.0.0",
+	"minAppVersion": "1.10.0",
 	"description": "Export markdown to typst",
 	"author": "Stefan Danzl",
 	"authorUrl": "https://github.com/stefandanzl",
