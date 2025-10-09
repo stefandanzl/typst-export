@@ -7,6 +7,7 @@ vars:
     DIR_PLUGIN: "{{.VAULTS_DIR}}/{{.VAULT_NAME}}/.obsidian/plugins/{{.PLUGIN}}"
     VERSION:
         sh: node -e "console.log(require('./package.json').version)"
+    FILES: "main.js manifest.json"
 
 # Rename .env-example to .env and modify for your setup
 dotenv: [".env"]
