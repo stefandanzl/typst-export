@@ -28,25 +28,29 @@ export class EmbedWikilink implements node {
 	header: string | undefined;
 	display: string | undefined;
 	label: string | undefined;
+	custom_label: string | undefined;
 	static get_regexp(): RegExp {
-		return /(?:(\S*?)::\s*\n?\s*)?!\[\[([\s\S]*?)(?:#([\s\S]+?))?(?:\|([\s\S]*?))?\]\]/g;
+		// Now captures optional {#label} after the wikilink for custom labels
+		return /(?:(\S*?)::\s*\n?\s*)?!\[\[([\s\S]*?)(?:#([\s\S]+?))?(?:\|([\s\S]*?))?\]\](?:\s*\{#([^}]+)\})?/g;
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
 		settings: ExportPluginSettings
 	): EmbedWikilink {
-		return new EmbedWikilink(args[1], args[2], args[3], args[4]);
+		return new EmbedWikilink(args[1], args[2], args[3], args[4], args[5]);
 	}
 	constructor(
 		attribute: string | undefined,
 		address: string,
 		header: string | undefined,
-		displayed: string | undefined
+		displayed: string | undefined,
+		custom_label?: string
 	) {
 		this.attribute = attribute;
 		this.content = address;
 		this.header = header;
 		this.display = displayed;
+		this.custom_label = custom_label;
 	}
 
 	async unroll(
@@ -69,12 +73,20 @@ export class EmbedWikilink implements node {
 			} else {
 				data.media_files.push(file);
 				const p = new Plot(file, data.current_file, this.display);
-				p.label = await label_from_location(
-					data,
-					file.name,
-					data.current_file,
-					settings
-				);
+
+				// Use custom label if provided, otherwise generate from filename only
+				if (this.custom_label) {
+					p.label = format_label(this.custom_label);
+				} else {
+					// Use only the filename (without path) for auto-generated labels
+					p.label = await label_from_location(
+						data,
+						file.name,
+						data.current_file,
+						settings
+					);
+				}
+
 				// Resolve the label early. We can do this because label_from_location will not need to resolve headers.
 				return [p];
 			}
@@ -296,8 +308,9 @@ export class Table implements node {
 	file_of_origin: TFile;
 
 	static get_regexp(): RegExp {
-		// Matches markdown tables with optional caption in {!text}{#id} format
-		return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)\s*(?:\{!([^}]+)\})?\s*\{#([^}]+)\}/gm;
+		// Matches markdown tables with optional caption {!text} and optional label {#id}
+		// Now supports plain markdown tables without any metadata
+		return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)(?:\s*\{!([^}]+)\})?(?:\s*\{#([^}]+)\})?/gm;
 	}
 
 	static build_from_match(
@@ -308,7 +321,7 @@ export class Table implements node {
 		const headerLine = match[1]; // Header row content
 		const dataRows = match[2]; // All data rows
 		const caption = match[3]; // Optional caption from {!text}
-		const tableId = match[4]; // Table ID from {#id}
+		const tableId = match[4]; // Optional table ID from {#id}
 
 		return new Table(headerLine, dataRows, caption, tableId);
 	}
@@ -468,25 +481,26 @@ export class Table implements node {
 		}
 		
 		buffer_offset += buffer.write("  ),\n", buffer_offset);
-		
+
 		// Handle caption
-		let caption_text: string;
-		if (this.caption === undefined) {
-			caption_text = "";
+		if (this.caption !== undefined && this.caption !== "") {
+			buffer_offset += buffer.write(
+				'  caption: [' + this.caption + '],\n',
+				buffer_offset
+			);
+		} else {
+			// Show warning with example of how to add caption
 			const warning =
 				"WARNING: Table has no caption.\n" +
-				"You may want to add one when creating the table.\n" +
-				"In note:\n";
+				"Add a caption by placing {!caption text} after the table, like this:\n\n" +
+				"| Header1 | Header2 |\n" +
+				"| ------- | ------- |\n" +
+				"| Cell1   | Cell2   |\n" +
+				"{!Your caption here}{#optional-label}\n\n" +
+				"In note: " + (this.file_of_origin ? this.file_of_origin.path : "unknown");
 			notice_and_warn(warning);
-		} else {
-			caption_text = this.caption;
 		}
-		
-		buffer_offset += buffer.write(
-			'  caption: [' + caption_text + '],\n',
-			buffer_offset
-		);
-		
+
 		if (this.label) {
 			buffer_offset += buffer.write(
 				') <' + this.label + '>\n',
@@ -495,7 +509,7 @@ export class Table implements node {
 		} else {
 			buffer_offset += buffer.write(")\n", buffer_offset);
 		}
-		
+
 		return buffer_offset;
 	}
 }
@@ -760,6 +774,118 @@ export class Environment implements node {
 		buffer_offset += buffer.write("  ]\n", buffer_offset);
 		buffer_offset += buffer.write(")\n", buffer_offset);
 		
+		return buffer_offset;
+	}
+}
+
+export class MarkdownImage implements node {
+	image: TFile | undefined;
+	alt: string;
+	path: string;
+	label: string | undefined;
+	custom_label: string | undefined;
+	file_of_origin: TFile;
+
+	static get_regexp(): RegExp {
+		// Matches ![alt](path){#optional-label} but not hyperlinks (no http/https)
+		return /!\[([^\]]*)\]\((?!https?:\/\/)([^\s)]+)\)(?:\s*\{#([^}]+)\})?/g;
+	}
+
+	static build_from_match(
+		args: RegExpMatchArray,
+		settings: ExportPluginSettings
+	): MarkdownImage {
+		return new MarkdownImage(args[1], args[2], args[3]);
+	}
+
+	constructor(alt: string, path: string, custom_label?: string) {
+		this.alt = alt;
+		this.path = path;
+		this.custom_label = custom_label;
+	}
+
+	async unroll(
+		data: metadata_for_unroll,
+		settings: ExportPluginSettings
+	): Promise<node[]> {
+		this.file_of_origin = data.current_file;
+
+		// Find the image file
+		const file = find_image_file(data.find_file, this.path);
+
+		if (file === undefined) {
+			const err_msg = `Image not found: Could not find image '${this.path}'`;
+			notice_and_warn(err_msg);
+			return [
+				new BlankLine(),
+				new Paragraph([new Text(err_msg)]),
+				new BlankLine(),
+			];
+		}
+
+		this.image = file;
+		data.media_files.push(file);
+
+		// Use custom label if provided, otherwise generate from filename only
+		if (this.custom_label) {
+			this.label = format_label(this.custom_label);
+		} else {
+			// Use only the filename (without path) for auto-generated labels
+			this.label = await label_from_location(
+				data,
+				file.name,
+				data.current_file,
+				settings
+			);
+		}
+
+		return [this];
+	}
+
+	async typst(
+		buffer: Buffer,
+		buffer_offset: number,
+		settings: ExportPluginSettings
+	): Promise<number> {
+		if (!this.image) {
+			return buffer_offset;
+		}
+
+		// Typst figure syntax
+		buffer_offset += buffer.write("#figure(\n", buffer_offset);
+		buffer_offset += buffer.write(
+			'  image("' + "Attachments/" + this.image.name + '"),\n',
+			buffer_offset
+		);
+
+		// Use alt text as caption if provided
+		const caption_text = this.alt || "";
+
+		if (!caption_text) {
+			const warning =
+				"WARNING: Image '" +
+				this.image.name +
+				"' has no alt text (caption).\n" +
+				"You may want to add one: ![caption](image.png)\n" +
+				"In note:\n" +
+				this.file_of_origin.path;
+			notice_and_warn(warning);
+		}
+
+		buffer_offset += buffer.write(
+			'  caption: [' + caption_text + '],\n',
+			buffer_offset
+		);
+
+		if (this.label) {
+			buffer_offset += buffer.write(
+				') <' + this.label + '>\n',
+				buffer_offset
+			);
+		} else {
+			buffer_offset += buffer.write(")\n", buffer_offset);
+		}
+
 		return buffer_offset;
 	}
 }

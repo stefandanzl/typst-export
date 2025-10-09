@@ -29,6 +29,7 @@ import {
 	EmbedWikilink,
 	Environment,
 	Hyperlink,
+	MarkdownImage,
 	Table,
 	AliasCitation,
 } from "./wikilinks";
@@ -692,6 +693,12 @@ export function parse_inline(
 		Wikilink.build_from_match,
 		settings
 	); // must be before inline math so as to include math in displayed text.
+	inline_arr = split_inline<MarkdownImage>(
+		inline_arr,
+		MarkdownImage.get_regexp(),
+		MarkdownImage.build_from_match,
+		settings
+	); // must be before Hyperlink to catch ![alt](path) before [text](url)
 	inline_arr = split_inline<Hyperlink>(
 		inline_arr,
 		Hyperlink.get_regexp(),
