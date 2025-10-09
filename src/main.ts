@@ -7,7 +7,7 @@ import {
 	Plugin,
 	TFile,
 } from "obsidian";
-import { LatexExportSettingTab } from "./export_longform/settings";
+import { TypstExportSettingTab } from "./export_longform/settings";
 import { 
 	ExportService,
 	EXPORT_MESSAGES,
@@ -30,7 +30,7 @@ interface OpenDialogReturnValue {
 }
 
 /**
- * Main plugin class for LaTeX export functionality
+ * Main plugin class for Typst export functionality
  * Refactored to use service classes and better separation of concerns
  */
 export default class ExportPaperPlugin extends Plugin {
@@ -47,7 +47,7 @@ export default class ExportPaperPlugin extends Plugin {
 		this.registerCommands();
 		
 		// Add settings tab
-		this.addSettingTab(new LatexExportSettingTab(this.app, this));
+		this.addSettingTab(new TypstExportSettingTab(this.app, this));
 	}
 
 	onunload(): void {

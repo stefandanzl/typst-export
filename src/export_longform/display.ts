@@ -232,7 +232,7 @@ export class Paragraph implements node {
 	) {
 		let new_offset = buffer_offset;
 		for (const elt of this.elements) {
-			new_offset = await elt.latex(buffer, new_offset, settings);
+			new_offset = await elt.typst(buffer, new_offset, settings);
 		}
 		new_offset += buffer.write("\n", new_offset);
 		return new_offset;
@@ -580,7 +580,7 @@ export class NumberedList implements node {
 		for (const e of this.content) {
 			buffer_offset += buffer.write("\\item ", buffer_offset);
 			for (const f of e) {
-				buffer_offset = await f.latex(buffer, buffer_offset, settings);
+				buffer_offset = await f.typst(buffer, buffer_offset, settings);
 			}
 		}
 		buffer_offset += buffer.write("\\end{enumerate}\n", buffer_offset);
@@ -646,7 +646,7 @@ export class UnorderedList implements node {
 		for (const e of this.content) {
 			buffer_offset += buffer.write("\\item ", buffer_offset);
 			for (const f of e) {
-				buffer_offset = await f.latex(buffer, buffer_offset, settings);
+				buffer_offset = await f.typst(buffer, buffer_offset, settings);
 			}
 		}
 		buffer_offset += buffer.write("\\end{itemize}\n", buffer_offset);

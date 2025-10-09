@@ -1,28 +1,19 @@
 /**
- * Constants and configuration values for the Latex Exporter plugin
+ * Constants and configuration values for the Typst Exporter plugin
  */
 
 // File names and paths
 export const EXPORT_FILE_NAMES = {
-	LATEX: {
-		OUTPUT_FILENAME: "mainmd.tex",
-		PREAMBLE: "preamble.sty",
-		HEADER: "header.tex",
-		BIBLIOGRAPHY: "bibliography.bib",
-		ATTACHMENTS_FOLDER: "Attachments"
-	},
-	TYPST: {
-		OUTPUT_FILENAME: "mainmd.typ",
-		PREAMBLE: "preamble.typ",
-		HEADER: "header.typ",
-		BIBLIOGRAPHY: "bibliography.bib",
-		ATTACHMENTS_FOLDER: "Attachments"
-	}
+	OUTPUT_FILENAME: "mainmd.typ",
+	PREAMBLE: "preamble.typ",
+	HEADER: "header.typ",
+	BIBLIOGRAPHY: "bibliography.bib",
+	ATTACHMENTS_FOLDER: "Attachments"
 } as const;
 
 // Helper function to get file names based on export format
-export function getExportFileNames(format: "latex" | "typst") {
-	return EXPORT_FILE_NAMES[format.toUpperCase() as keyof typeof EXPORT_FILE_NAMES];
+export function getExportFileNames(format: "typst") {
+	return EXPORT_FILE_NAMES;
 }
 
 // Buffer and performance settings
@@ -44,7 +35,7 @@ export const EXPORT_MESSAGES = {
 	CANCELLED: "External export cancelled",
 	NO_FILE: "No active file found.",
 	FOLDER_NOT_FOUND: "Output folder path not found, defaulting to the root of the vault.",
-	CLIPBOARD_SUCCESS: "Latex content copied to clipboard",
+	CLIPBOARD_SUCCESS: "Typst content copied to clipboard",
 	FOLDER_PICKER_ERROR: "Failed to open folder picker",
 	TEMPLATE_FOLDER_SUCCESS: "Template folder copied successfully",
 	TEMPLATE_FOLDER_ERROR: "Template folder not found or couldn't be copied"

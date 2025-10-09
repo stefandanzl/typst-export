@@ -11,7 +11,6 @@ import {
 	parsed_longform,
 } from "../export_longform";
 import {
-	DEFAULT_LATEX_TEMPLATE,
 	DEFAULT_TYPST_TEMPLATE,
 } from "../export_longform/interfaces";
 
@@ -49,7 +48,7 @@ export class ExportService {
 			const exportPaths = FileOperations.createExportPaths(
 				outputPath,
 				activeFile,
-				settings.export_format
+				"typst"
 			);
 
 			// Parse the content
@@ -69,14 +68,8 @@ export class ExportService {
 			);
 
 			// 1. Handle template folder first (foundation)
-			// Use appropriate template folder based on export format
-			const templateFolder =
-				settings.export_format === "typst"
-					? settings.typst_template_folder
-					: settings.template_folder;
-
 			await this.fileManager.handleTemplateFolderExternal(
-				templateFolder,
+				settings.typst_template_folder,
 				exportPaths.outputFolderPath,
 				messageBuilder
 			);
@@ -172,14 +165,8 @@ export class ExportService {
 			);
 
 			// 1. Handle template folder first (foundation)
-			// Use appropriate template folder based on export format
-			const templateFolder =
-				settings.export_format === "typst"
-					? settings.typst_template_folder
-					: settings.template_folder;
-
 			await this.fileManager.handleTemplateFolderVault(
-				templateFolder,
+				settings.typst_template_folder,
 				exportPaths.outputFolderPath,
 				messageBuilder
 			);
@@ -299,33 +286,17 @@ export class ExportService {
 	/**
 	 * Handles supporting files for external export
 	 */
-	/**
-	 * Handles supporting files for external export
-	 */
 	private async handleSupportingFilesExternal(
 		parsedContents: parsed_longform,
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
 		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
-		// Handle preamble file (only for LaTeX exports)
-		if (settings.export_format !== "typst") {
-			const preambleFile = this.app.vault.getFileByPath(
-				settings.preamble_file
-			);
-			await this.fileManager.handlePreambleFileExternal(
-				preambleFile || undefined,
-				exportPaths.preamblePath,
-				messageBuilder,
-				settings.replace_existing_files
-			);
-		}
-
-		// Handle header file with format-specific content
+		// Handle header file
 		await this.fileManager.handleHeaderFileExternal(
 			exportPaths.headerPath,
 			messageBuilder,
-			settings.export_format,
+			"typst",
 			settings.replace_existing_files
 		);
 
@@ -341,33 +312,17 @@ export class ExportService {
 	/**
 	 * Handles supporting files for vault export
 	 */
-	/**
-	 * Handles supporting files for vault export
-	 */
 	private async handleSupportingFilesVault(
 		parsedContents: parsed_longform,
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
 		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
-		// Handle preamble file (only for LaTeX exports)
-		if (settings.export_format !== "typst") {
-			const preambleFile = this.app.vault.getFileByPath(
-				settings.preamble_file
-			);
-			await this.fileManager.handlePreambleFileVault(
-				preambleFile || undefined,
-				exportPaths.preamblePath,
-				messageBuilder,
-				settings.replace_existing_files
-			);
-		}
-
-		// Handle header file with format-specific content
+		// Handle header file
 		await this.fileManager.handleHeaderFileVault(
 			exportPaths.headerPath,
 			messageBuilder,
-			settings.export_format,
+			"typst",
 			settings.replace_existing_files
 		);
 
@@ -383,12 +338,6 @@ export class ExportService {
 	/**
 	 * Writes the main output file for external export
 	 */
-	/**
-	 * Writes the main output file for external export
-	 */
-	/**
-	 * Writes the main output file for external export
-	 */
 	private async writeMainOutputFileExternal(
 		parsedContents: parsed_longform,
 		exportPaths: ExportPaths,
@@ -399,27 +348,13 @@ export class ExportService {
 			console.log(`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`);
 			return;
 		}
-		
-		const templatePath =
-			settings.export_format === "typst"
-				? settings.typst_template_path
-				: settings.template_path;
-		const templateFile = this.app.vault.getFileByPath(templatePath);
-		let templateContent =
-			settings.export_format === "typst"
-				? DEFAULT_TYPST_TEMPLATE
-				: DEFAULT_LATEX_TEMPLATE;
+
+		const templateFile = this.app.vault.getFileByPath(settings.typst_template_path);
+		let templateContent = DEFAULT_TYPST_TEMPLATE;
 
 		if (templateFile) {
 			templateContent = await this.app.vault.read(templateFile);
 		}
-
-		// Get the correct preamble file based on export format
-		const preamblePath =
-			settings.export_format === "typst" ? "" : settings.preamble_file;
-		const preambleFile = preamblePath
-			? this.app.vault.getFileByPath(preamblePath) || undefined
-			: undefined;
 
 		await write_with_template(
 			templateContent,
@@ -428,20 +363,11 @@ export class ExportService {
 			{ path: exportPaths.outputFilePath } as TFile,
 			async (_file, content) =>
 				FileOperations.writeFile(exportPaths.outputFilePath, content),
-			preambleFile,
-			preambleFile ? this.app.vault.read.bind(this.app.vault) : undefined
+			undefined,
+			undefined
 		);
 	}
 
-	/**
-	 * Writes the main output file for vault export
-	 */
-	/**
-	 * Writes the main output file for vault export
-	 */
-	/**
-	 * Writes the main output file for vault export
-	 */
 	/**
 	 * Writes the main output file for vault export
 	 */
@@ -450,26 +376,12 @@ export class ExportService {
 		outputFile: TFile,
 		settings: ExportPluginSettings
 	): Promise<void> {
-		const templatePath =
-			settings.export_format === "typst"
-				? settings.typst_template_path
-				: settings.template_path;
-		const templateFile = this.app.vault.getFileByPath(templatePath);
-		let templateContent =
-			settings.export_format === "typst"
-				? DEFAULT_TYPST_TEMPLATE
-				: DEFAULT_LATEX_TEMPLATE;
+		const templateFile = this.app.vault.getFileByPath(settings.typst_template_path);
+		let templateContent = DEFAULT_TYPST_TEMPLATE;
 
 		if (templateFile) {
 			templateContent = await this.app.vault.read(templateFile);
 		}
-
-		// Get the correct preamble file based on export format
-		const preamblePath =
-			settings.export_format === "typst" ? "" : settings.preamble_file;
-		const preambleFile = preamblePath
-			? this.app.vault.getFileByPath(preamblePath) || undefined
-			: undefined;
 
 		await write_with_template(
 			templateContent,
@@ -477,8 +389,8 @@ export class ExportService {
 			settings.sectionTemplateNames,
 			outputFile,
 			this.app.vault.modify.bind(this.app.vault),
-			preambleFile,
-			preambleFile ? this.app.vault.read.bind(this.app.vault) : undefined
+			undefined,
+			undefined
 		);
 	}
 
@@ -514,7 +426,7 @@ export class ExportService {
 			/^\/+/,
 			""
 		);
-		const fileNames = getExportFileNames(settings.export_format);
+		const fileNames = getExportFileNames("typst");
 
 		return {
 			outputFolderPath,
@@ -548,13 +460,8 @@ export class ExportService {
 	/**
 	 * Execute post-conversion command if specified
 	 */
-	/**
-	 * Execute post-conversion command if specified
-	 */
 	private async executePostCommand(outputFilePath: string, settings: ExportPluginSettings): Promise<void> {
-		const command = settings.export_format === "typst" 
-			? settings.typst_post_command 
-			: settings.latex_post_command;
+		const command = settings.typst_post_command;
 
 		if (!command || command.trim() === "") {
 			return; // No command specified

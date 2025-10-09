@@ -6,11 +6,6 @@ export interface node {
 		data: metadata_for_unroll,
 		settings: ExportPluginSettings
 	): Promise<node[]>;
-	latex(
-		buffer: Buffer,
-		buffer_offset: number,
-		settings: ExportPluginSettings
-	): Promise<number>;
 	typst(
 		buffer: Buffer,
 		buffer_offset: number,
@@ -20,87 +15,37 @@ export interface node {
 
 export interface ExportPluginSettings {
 	mySetting: string;
-	template_path: string;
 	base_output_folder: string;
-	documentStructureType: "article" | "book";
 	sectionTemplateNames: string[];
-	preamble_file: string;
 	bib_file: string;
 	prioritize_lists: boolean;
-	default_citation_command: string;
 	display_env_titles: boolean;
 	default_env_name_to_file_name: boolean;
 	last_external_folder: string;
-	template_folder: string;
 	// Typst support
-	export_format: "latex" | "typst";
 	typst_template_path: string;
 	typst_template_folder: string;
 	typst_post_command: string;
-	// LaTeX post-processing
-	latex_post_command: string;
 	// File replacement behavior
 	replace_existing_files: boolean;
-
 }
 
 export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	mySetting: "default",
-	template_path: "",
 	base_output_folder: "/",
-	documentStructureType: "article",
 	sectionTemplateNames: ["abstract", "appendix"],
-	preamble_file: "",
 	bib_file: "",
 	prioritize_lists: false, // Whether to parse lists or equations first. Lists first allows lists containing display equations, but yields bugs because lines within an equation can easily start with '-'.
-	default_citation_command: "cite",
 	display_env_titles: true,
 	default_env_name_to_file_name: false,
 	last_external_folder: "",
-	template_folder: "",
 	// Typst support
-	export_format: "latex",
 	typst_template_path: "",
 	typst_template_folder: "",
 	typst_post_command: "",
-	// LaTeX post-processing
-	latex_post_command: "",
 	// File replacement behavior
 	replace_existing_files: false,
-
 };
-
-export const HEADING_STRUCTURE = {
-	article: { 1: "section", 2: "subsection", 3: "subsubsection" },
-	book: { 1: "chapter", 2: "section", 3: "subsection", 4: "subsubsection" },
-} as const;
-
-export type HEADING_STRUCTURE = typeof HEADING_STRUCTURE;
-
-export const DEFAULT_LATEX_TEMPLATE = `
-\documentclass{article}
-\input{header}
-{{PREAMBLE}}
-
-\addbibresource{bibliography.bib}
-\title{{{title}}}
-\author{{{author}}}
-
-\begin{document}
-\maketitle
-
-{{abstract}}
-
-{{body}}
-
-{{customSections}}
-
-\printbibliography
-
-{{appendix}}
-
-\end{document}
-`;
 
 export const DEFAULT_TYPST_TEMPLATE = `
 #import "preamble.typ": *

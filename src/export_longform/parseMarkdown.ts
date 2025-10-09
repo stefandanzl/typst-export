@@ -97,7 +97,7 @@ export async function parse_longform(
 	let body_header_content = parsed_note.body;
 	for (const header of top_level_headers) {
 		if (
-			(await header.latex_title(settings)).toLowerCase().trim() === "body"
+			(await header.typst_title(settings)).toLowerCase().trim() === "body"
 		) {
 			let body_header = header;
 			lower_headers([body_header]);
@@ -121,7 +121,7 @@ export async function parse_longform(
 
 	for (const section of settings.sectionTemplateNames) {
 		for (const header of top_level_headers) {
-			const title = (await header.latex_title(settings))
+			const title = (await header.typst_title(settings))
 				.toLowerCase()
 				.trim();
 
@@ -169,11 +169,7 @@ async function render_content(
 	const buffer = Buffer.alloc(PERFORMANCE_CONSTANTS.RENDER_BUFFER_SIZE);
 	let offset = 0;
 	for (const elt of content) {
-		if (settings.export_format === "typst") {
-			offset = await elt.typst(buffer, offset, settings);
-		} else {
-			offset = await elt.latex(buffer, offset, settings);
-		}
+		offset = await elt.typst(buffer, offset, settings);
 	}
 	return buffer.toString("utf8", 0, offset);
 }
@@ -196,7 +192,7 @@ export async function export_selection(
 		const content = this.join_sections(parsed_contents);
 		// copy content to clipboard
 		await navigator.clipboard.writeText(content);
-		new Notice("Latex content copied to clipboard");
+		new Notice("Typst content copied to clipboard");
 		return;
 	}
 }

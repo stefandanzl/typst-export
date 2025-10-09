@@ -52,7 +52,7 @@ export class FileOperations {
 	/**
 	 * Creates standard export paths for a given base folder and file
 	 */
-	static createExportPaths(baseFolderPath: string, activeFile: TFile, exportFormat: "latex" | "typst" = "latex") {
+	static createExportPaths(baseFolderPath: string, activeFile: TFile, exportFormat: "typst" = "typst") {
 		const outputFolderName = this.generateSafeFilename(activeFile.basename);
 		const outputFolderPath = path.join(baseFolderPath, outputFolderName);
 		const fileNames = getExportFileNames(exportFormat);

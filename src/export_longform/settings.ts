@@ -8,7 +8,7 @@ import {
 } from "obsidian";
 import ExportPaperPlugin from "../main";
 
-export class LatexExportSettingTab extends PluginSettingTab {
+export class TypstExportSettingTab extends PluginSettingTab {
 	plugin: ExportPaperPlugin;
 
 	constructor(app: App, plugin: ExportPaperPlugin) {
@@ -19,23 +19,6 @@ export class LatexExportSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-
-		// Export format selection (at the top)
-		new Setting(containerEl)
-			.setName("Export format")
-			.setDesc("Choose between LaTeX and Typst output formats")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("latex", "LaTeX")
-					.addOption("typst", "Typst")
-					.setValue(this.plugin.settings.export_format)
-					.onChange(async (value: "latex" | "typst") => {
-						this.plugin.settings.export_format = value;
-						await this.plugin.saveSettings();
-						// Refresh the display to show/hide format-specific settings
-						this.display();
-					})
-			);
 
 		// General Settings
 		containerEl.createEl("h3", { text: "General Settings" });
@@ -87,27 +70,6 @@ export class LatexExportSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Document structure type")
-			.setDesc(
-				"Whether to export the document headers as LaTeX for an article (false) or a book (true)."
-			)
-			.addToggle((value) =>
-				value
-					.setValue(
-						this.plugin.settings.documentStructureType === "book"
-					)
-					.onChange(async (value) => {
-						if (value) {
-							this.plugin.settings.documentStructureType = "book";
-						} else {
-							this.plugin.settings.documentStructureType =
-								"article";
-						}
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
 			.setName("Prioritize lists over equations")
 			.setDesc(
 				"Whether to include display equations in lists, or stop the list and have the equation outside of the list."
@@ -124,7 +86,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Display environment names")
 			.setDesc(
-				"Set display attribute of the wikilink as the visible name of the environment in latex. If no display value is found, the value of the yaml entry 'env_title' will be used. If that is not found, use the file name if 'Default environment title to file names' is set. Setting any such field to an empty string specifies the absence of a title."
+				"Set display attribute of the wikilink as the visible name of the environment. If no display value is found, the value of the yaml entry 'env_title' will be used. If that is not found, use the file name if 'Default environment title to file names' is set. Setting any such field to an empty string specifies the absence of a title."
 			)
 			.addToggle((cb) =>
 				cb
@@ -160,7 +122,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder(
-						"Last used external folder (e.g., /home/user/latex)"
+						"Last used external folder (e.g., /home/user/typst)"
 					)
 					.setValue(this.plugin.settings.last_external_folder)
 					.onChange(async (value) => {
@@ -238,61 +200,7 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					.setButtonText("Test")
 					.setTooltip("Test the command (replaces $filepath with a sample path)")
 					.onClick(async () => {
-						await this.testPostCommand(this.plugin.settings.typst_post_command, "typst");
-					})
-			);
-
-		// LaTeX-specific settings
-		containerEl.createEl("h3", { text: "LaTeX Settings" });
-
-		new Setting(containerEl)
-			.setName("LaTeX template file")
-			.setDesc(
-				"Relative vault path to a LaTeX template file. Only set this if you would like to export with a template (you don't need to.)"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/template_file.tex")
-					.setValue(this.plugin.settings.template_path)
-					.onChange(async (value) => {
-						if (value === "") {
-							value = "/";
-						}
-						this.plugin.settings.template_path =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("LaTeX template folder")
-			.setDesc(
-				"Relative vault path to a folder containing LaTeX template files (e.g., .sty files, images, etc.). The entire folder contents will be copied to the export directory."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/latex_template_folder/")
-					.setValue(this.plugin.settings.template_folder)
-					.onChange(async (value) => {
-						this.plugin.settings.template_folder =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("LaTeX preamble file")
-			.setDesc(
-				"Vault relative path to a preamble.sty file in your vault. It will be included in the export. Example: 'preamble.sty' or 'styles/my-preamble.sty'. Leave empty if you don't have a preamble file."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/preamble_file.sty")
-					.setValue(this.plugin.settings.preamble_file)
-					.onChange(async (value) => {
-						// Don't normalize empty string to "/"
-						this.plugin.settings.preamble_file = value.trim() === "" ? "" : normalizePath(value);
-						await this.plugin.saveSettings();
+						await this.testPostCommand(this.plugin.settings.typst_post_command);
 					})
 			);
 
@@ -311,50 +219,12 @@ export class LatexExportSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
 		);
-
-		new Setting(containerEl)
-			.setName("Default cite command")
-			.setDesc("Default LaTeX citation command (e.g., cite, textcite, parencite)")
-			.addText((txt) =>
-				txt
-					.setValue(this.plugin.settings.default_citation_command)
-					.onChange(async (value) => {
-						this.plugin.settings.default_citation_command = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("LaTeX post-conversion command")
-			.setDesc(
-				"Command to run after converting to LaTeX. Use $filepath as placeholder for the absolute path to the generated .tex file. Example: 'pdflatex $filepath'"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("pdflatex $filepath")
-					.setValue(this.plugin.settings.latex_post_command)
-					.onChange(async (value) => {
-						this.plugin.settings.latex_post_command = value;
-						await this.plugin.saveSettings();
-					})
-			)
-			.addButton((button) =>
-				button
-					.setButtonText("Test")
-					.setTooltip("Test the command (replaces $filepath with a sample path)")
-					.onClick(async () => {
-						await this.testPostCommand(this.plugin.settings.latex_post_command, "latex");
-					})
-			);
 	}
 
 	/**
 	 * Test a post-conversion command with a placeholder file
 	 */
-	/**
-	 * Test a post-conversion command with a placeholder file
-	 */
-	private async testPostCommand(command: string, format: "latex" | "typst"): Promise<void> {
+	private async testPostCommand(command: string): Promise<void> {
 		if (!command || command.trim() === "") {
 			new Notice("No command specified to test");
 			return;
@@ -362,20 +232,20 @@ export class LatexExportSettingTab extends PluginSettingTab {
 
 		try {
 			// Create a temporary test file path
-			const testFileName = format === "typst" ? "mainmd.typ" : "mainmd.tex";
+			const testFileName = "mainmd.typ";
 			const testFilePath = `C:\\temp\\test_project\\${testFileName}`;
-			
+
 			// Replace the placeholder with the test file path
 			const testCommand = command.replace(/\$filepath/g, testFilePath);
-			
+
 			// Show the command that would be executed
 			new Notice(`Test command: ${testCommand}`, 8000);
-			
+
 			// Also log to console for debugging
 			console.log("Original command:", command);
 			console.log("Test file path:", testFilePath);
 			console.log("Final test command:", testCommand);
-			
+
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			new Notice(`Command test failed: ${errorMessage}`);

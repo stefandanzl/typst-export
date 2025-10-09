@@ -687,7 +687,7 @@ export class Environment implements node {
 			buffer_offset += buffer.write("\n", buffer_offset);
 		}
 		for (const e of this.children) {
-			buffer_offset = await e.latex(buffer, buffer_offset, settings);
+			buffer_offset = await e.typst(buffer, buffer_offset, settings);
 		}
 		buffer_offset += buffer.write(
 			"\\end{" + this.type + "}\n",
@@ -1181,7 +1181,7 @@ export class Citation implements node {
 		} else if (this.type == "year") {
 			citeword = "citeyear";
 		} else if (this.type == undefined) {
-			citeword = settings.default_citation_command;
+			citeword = "cite";
 		} else {
 			throw Error("Invalid type: " + this.type);
 		}
@@ -1358,7 +1358,7 @@ export class AliasCitation implements node {
 		} else if (this.type == "year") {
 			citeword = "citeyear";
 		} else if (this.type == undefined) {
-			citeword = settings.default_citation_command;
+			citeword = "cite";
 		} else {
 			throw Error("Invalid type: " + this.type);
 		}

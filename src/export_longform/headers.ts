@@ -1,6 +1,5 @@
 import { node, metadata_for_unroll, ExportPluginSettings } from "./interfaces";
 import { label_from_location } from "./labels";
-import { HEADING_STRUCTURE } from "./interfaces";
 
 export class ProofHeader implements node {
 	title: string;
@@ -9,15 +8,6 @@ export class ProofHeader implements node {
 	}
 	async unroll(): Promise<node[]> {
 		return [this];
-	}
-	async latex(
-		buffer: Buffer,
-		buffer_offset: number,
-		settings: ExportPluginSettings
-	): Promise<number> {
-		const header_string = "\n\\textbf{" + this.title + "}\n\n";
-		buffer_offset += buffer.write(header_string, buffer_offset);
-		return buffer_offset;
 	}
 	async typst(
 		buffer: Buffer,
@@ -61,7 +51,7 @@ export class Header implements node {
 				new_children.push(...(await elt.unroll(data, settings)));
 			}
 			return [
-				new ProofHeader(await this.latex_title(settings)),
+				new ProofHeader(await this.typst_title(settings)),
 				...new_children,
 			];
 		}
@@ -103,14 +93,6 @@ export class Header implements node {
 		this.children = new_children;
 		return [this];
 	}
-	async latex_title(settings: ExportPluginSettings): Promise<string> {
-		const buffer = Buffer.alloc(1000);
-		let buffer_offset = 0;
-		for (const e of this.title) {
-			buffer_offset = await e.latex(buffer, buffer_offset, settings);
-		}
-		return buffer.toString("utf8", 0, buffer_offset);
-	}
 
 	async typst_title(settings: ExportPluginSettings): Promise<string> {
 		const buffer = Buffer.alloc(1000);
@@ -119,44 +101,6 @@ export class Header implements node {
 			buffer_offset = await e.typst(buffer, buffer_offset, settings);
 		}
 		return buffer.toString("utf8", 0, buffer_offset);
-	}
-	async latex(
-		buffer: Buffer,
-		buffer_offset: number,
-		settings: ExportPluginSettings
-	): Promise<number> {
-		const header_title = await this.latex_title(settings);
-
-		const commands = HEADING_STRUCTURE[settings.documentStructureType];
-
-		let header_string = `\n\\textbf{${header_title}}\n\n`;
-		// Check if we have a proper sectioning command for this level
-		if (this.level in commands) {
-			//@ts-ignore
-			const command = commands[this.level];
-			header_string = `\\${command}{${header_title}}\n`;
-		}
-
-		buffer_offset += buffer.write(header_string, buffer_offset);
-		const promises = this.data.header_stack.map(
-			async (e) => await e.latex_title(settings)
-		);
-		buffer_offset += buffer.write(
-			"\\label{" +
-				(await label_from_location(
-					this.data,
-					this.data.current_file.basename, //File the header came from
-					this.data.current_file,
-					settings,
-					await Promise.all(promises)
-				)) +
-				"}\n",
-			buffer_offset
-		);
-		for (const e of this.children) {
-			buffer_offset = await e.latex(buffer, buffer_offset, settings);
-		}
-		return buffer_offset;
 	}
 
 	async typst(
@@ -233,7 +177,7 @@ export async function find_header(
 				}
 				if (
 					header_stack.length > 0 &&
-					(await elt.latex_title(settings)).toLowerCase().trim() ==
+					(await elt.typst_title(settings)).toLowerCase().trim() ==
 						current_check.toLowerCase().trim()
 				) {
 					if (header_stack.length == 1) {
@@ -296,11 +240,11 @@ export async function get_header_address(
 			);
 			const new_address =
 				built_address === undefined
-					? await elt.latex_title(settings)
-					: built_address + "." + (await elt.latex_title(settings));
+					? await elt.typst_title(settings)
+					: built_address + "." + (await elt.typst_title(settings));
 			if (
 				header_stack.length > 0 &&
-				(await elt.latex_title(settings)).toLowerCase().trim() ==
+				(await elt.typst_title(settings)).toLowerCase().trim() ==
 					current_check.toLowerCase().trim()
 			) {
 				if (header_stack.length == 1) {
