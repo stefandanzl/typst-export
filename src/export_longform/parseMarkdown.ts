@@ -202,96 +202,93 @@ export async function write_with_template(
 	parsed_contents: parsed_longform,
 	sectionTemplateNames: string[],
 	output_file: TFile,
-	modify_tfile: (file: TFile, content: string) => Promise<void>,
-	preamble_file?: TFile,
-	read_preamble?: (file: TFile) => Promise<string>
+	modify_tfile: (file: TFile, content: string) => Promise<void>
 ) {
 	console.log("PARSED YAML KEYS:", Object.keys(parsed_contents["yaml"]));
 	console.log("PARSED YAML CONTENT:", parsed_contents["yaml"]);
 
-	// Handle {{PREAMBLE}} placeholder replacement
-	let preambleContent = "";
-	if (preamble_file) {
-		try {
-			if (read_preamble) {
-				// Use the provided reader function (for external exports)
-				preambleContent = await read_preamble(preamble_file);
-			} else {
-				// Try to access the vault through the global context or file properties
-				// This works for vault exports where we have access to the vault
-				const app = (globalThis as any).app;
-				if (app && app.vault && app.vault.read) {
-					preambleContent = await app.vault.read(preamble_file);
-				}
-			}
-		} catch (error) {
-			console.error("Error reading preamble file:", error);
-		}
-	}
-
 	// Determine format based on template content to use appropriate placeholder syntax
-	const isTypstFormat = template_content.includes('#import') || template_content.includes('#set') || template_content.includes('#align');
-	
+	const isTypstFormat =
+		template_content.includes("#import") ||
+		template_content.includes("#set") ||
+		template_content.includes("#align");
+
 	if (isTypstFormat) {
 		// For Typst: Replace ALL {{placeholder}} patterns generically
 		console.log("Processing Typst template with {{placeholder}} syntax");
-		
+
 		// Create a comprehensive data map from all available sources
 		const dataMap = new Map<string, string>();
-		
-		// Add PREAMBLE content
-		dataMap.set("PREAMBLE", preambleContent);
-		
+
 		// Add all YAML frontmatter data
 		for (const [key, value] of Object.entries(parsed_contents["yaml"])) {
 			dataMap.set(key.toLowerCase(), value || "");
 			dataMap.set(key, value || ""); // Also store with original case
 		}
-		
+
 		// Add all sections data
-		for (const [section, content] of Object.entries(parsed_contents["sections"])) {
+		for (const [section, content] of Object.entries(
+			parsed_contents["sections"]
+		)) {
 			dataMap.set(section.toLowerCase(), content || "");
 			dataMap.set(section, content || ""); // Also store with original case
 		}
-		
+
 		// Find and replace ALL {{placeholder}} patterns (including hyphens)
-		template_content = template_content.replace(/\{\{([a-zA-Z_][a-zA-Z0-9_-]*)\}\}/g, (match, placeholder) => {
-			const replacement = dataMap.get(placeholder) || dataMap.get(placeholder.toLowerCase()) || "";
-			console.log(`Replacing {{${placeholder}}} with: "${replacement}"`);
-			return replacement;
-		});
-		
+		template_content = template_content.replace(
+			/\{\{([a-zA-Z_][a-zA-Z0-9_-]*)\}\}/g,
+			(match, placeholder) => {
+				const replacement =
+					dataMap.get(placeholder) ||
+					dataMap.get(placeholder.toLowerCase()) ||
+					"";
+				console.log(
+					`Replacing {{${placeholder}}} with: "${replacement}"`
+				);
+				return replacement;
+			}
+		);
 	} else {
 		// For LaTeX: Replace ALL $placeholder$ patterns generically
 		console.log("Processing LaTeX template with $placeholder$ syntax");
-		
-		// Replace {{PREAMBLE}} placeholder first (this is always {{}} format)
-		template_content = template_content.replace(/\{\{PREAMBLE\}\}/g, preambleContent);
-		
+
 		// Create a comprehensive data map from all available sources
 		const dataMap = new Map<string, string>();
-		
+
 		// Add all YAML frontmatter data
 		for (const [key, value] of Object.entries(parsed_contents["yaml"])) {
 			dataMap.set(key.toLowerCase(), value || "");
 			dataMap.set(key, value || ""); // Also store with original case
 		}
-		
+
 		// Add all sections data
-		for (const [section, content] of Object.entries(parsed_contents["sections"])) {
+		for (const [section, content] of Object.entries(
+			parsed_contents["sections"]
+		)) {
 			dataMap.set(section.toLowerCase(), content || "");
 			dataMap.set(section, content || ""); // Also store with original case
 		}
-		
+
 		// Find and replace ALL $placeholder$ patterns (including hyphens)
-		template_content = template_content.replace(/\$([a-zA-Z_][a-zA-Z0-9_-]*)\$/g, (match, placeholder) => {
-			const replacement = dataMap.get(placeholder) || dataMap.get(placeholder.toLowerCase()) || "";
-			console.log(`Replacing $${placeholder}$ with: "${replacement}"`);
-			return replacement;
-		});
+		template_content = template_content.replace(
+			/\$([a-zA-Z_][a-zA-Z0-9_-]*)\$/g,
+			(match, placeholder) => {
+				const replacement =
+					dataMap.get(placeholder) ||
+					dataMap.get(placeholder.toLowerCase()) ||
+					"";
+				console.log(
+					`Replacing $${placeholder}$ with: "${replacement}"`
+				);
+				return replacement;
+			}
+		);
 	}
 
-	console.log("FINAL TEMPLATE CONTENT SAMPLE:", template_content.substring(0, 500));
+	console.log(
+		"FINAL TEMPLATE CONTENT SAMPLE:",
+		template_content.substring(0, 500)
+	);
 
 	await modify_tfile(output_file, template_content);
 }

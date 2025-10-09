@@ -5,6 +5,7 @@ import {
 	Vault,
 	TFolder,
 	TAbstractFile,
+	normalizePath,
 } from "obsidian";
 import { getExportFileNames } from "./constants";
 
@@ -101,7 +102,7 @@ export class FileOperations {
 		// Ensure the directory exists
 		const dirPath = path.dirname(filePath);
 		await this.ensureDirectoryExists(vaultAdapter, dirPath);
-
+		console.debug("writing .typ file:");
 		// Write the file
 		await vaultAdapter.write(fullPath, content);
 	}
@@ -122,18 +123,28 @@ export class FileOperations {
 		exportFormat: "typst" = "typst"
 	) {
 		const outputFolderName = this.generateSafeFilename(activeFile.basename);
-		const outputFolderPath = path.join(baseFolderPath, outputFolderName);
+		const outputFolderPath = normalizePath(
+			path.join(baseFolderPath, outputFolderName)
+		);
 		const fileNames = getExportFileNames(exportFormat);
 		const outputFileName = fileNames.OUTPUT_FILENAME;
-		const outputFilePath = path.join(outputFolderPath, outputFileName);
+		const outputFilePath = normalizePath(
+			path.join(outputFolderPath, outputFileName)
+		);
 
 		return {
 			outputFolderPath,
 			outputFileName,
 			outputFilePath,
-			headerPath: path.join(outputFolderPath, fileNames.HEADER),
-			preamblePath: path.join(outputFolderPath, fileNames.PREAMBLE),
-			bibPath: path.join(outputFolderPath, fileNames.BIBLIOGRAPHY),
+			headerPath: normalizePath(
+				path.join(outputFolderPath, fileNames.HEADER)
+			),
+			preamblePath: normalizePath(
+				path.join(outputFolderPath, fileNames.PREAMBLE)
+			),
+			bibPath: normalizePath(
+				path.join(outputFolderPath, fileNames.BIBLIOGRAPHY)
+			),
 			attachmentsPath: path.join(
 				outputFolderPath,
 				fileNames.ATTACHMENTS_FOLDER

@@ -11,6 +11,7 @@ import {
 	parsed_longform,
 } from "../export_longform";
 import { DEFAULT_TYPST_TEMPLATE } from "../export_longform/interfaces";
+import { joinNormPath } from ".";
 
 /**
  * Service for handling export operations
@@ -267,6 +268,8 @@ export class ExportService {
 			// 	settings
 			// );
 
+			console.debug("E1");
+
 			const outputFolder = settings.base_output_folder;
 			const exportPaths = this.createVaultExportPaths(
 				outputFolder,
@@ -282,6 +285,7 @@ export class ExportService {
 				settings
 			);
 
+			console.debug("E2");
 			// Create output folder if it doesn't exist
 			const existingFolder = this.app.vault.getAbstractFileByPath(
 				exportPaths.outputFolderPath
@@ -300,6 +304,7 @@ export class ExportService {
 					});
 			}
 
+			console.debug("E3");
 			// Build export message
 			const messageBuilder = new ExportMessageBuilder(
 				EXPORT_MESSAGES.SUCCESS_BASE
@@ -316,6 +321,7 @@ export class ExportService {
 				messageBuilder
 			);
 
+			console.debug("E4");
 			// 2. Handle media files
 			await this.fileManager.handleMediaFilesVault(
 				parsedContents.media_files,
@@ -324,6 +330,7 @@ export class ExportService {
 				settings.replace_existing_files
 			);
 
+			console.debug("E5");
 			// 3. Handle supporting files (can override template defaults)
 			const bibFilePath = this.resolveBibPath(
 				parsedContents.yaml,
@@ -337,33 +344,42 @@ export class ExportService {
 				bibFilePath
 			);
 
+			console.debug("E6");
 			// 4. Check if output file exists and handle accordingly
 			let outputFile = this.app.vault.getFileByPath(
-				exportPaths.outputFilePath
+				normalizePath(exportPaths.outputFilePath)
 			);
+			console.debug("E6-1");
 			if (!outputFile) {
+				console.debug("E6-2-1");
 				outputFile = await this.app.vault.create(
 					exportPaths.outputFilePath,
 					""
 				);
+				console.debug("E6-2-2");
 			} else if (settings.replace_existing_files) {
 				// Overwrite existing file
+				console.debug("E6-3-1");
 				await this.app.vault.delete(outputFile);
 				outputFile = await this.app.vault.create(
 					exportPaths.outputFilePath,
 					""
 				);
+				console.debug("E6-3-2");
 			} else {
 				// Keep existing file, skip writing
 				new Notice(
 					`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`
 				);
+				console.debug("E6-4");
 				return {
 					success: true,
 					message: `Export skipped - file exists: ${exportPaths.outputFilePath}`,
 					outputPath: exportPaths.outputFilePath,
 				};
 			}
+			// ++++++++++++++++++
+			console.debug("E7");
 
 			// 5. Write the main output file (mainmd.tex) last
 			const templateFilePath = this.resolveTemplatePath(
@@ -376,6 +392,7 @@ export class ExportService {
 				settings,
 				templateFilePath
 			);
+			console.debug("E8");
 
 			// 6. Execute post-conversion command if specified (convert vault path to absolute)
 			const vaultAdapter = this.app.vault.adapter as any;
@@ -545,9 +562,7 @@ export class ExportService {
 					this.app.vault.adapter as FileSystemAdapter,
 					exportPaths.outputFilePath,
 					content
-				),
-			undefined,
-			undefined
+				)
 		);
 	}
 
@@ -574,9 +589,7 @@ export class ExportService {
 			parsedContents,
 			settings.sectionTemplateNames,
 			outputFile,
-			this.app.vault.modify.bind(this.app.vault),
-			undefined,
-			undefined
+			this.app.vault.modify.bind(this.app.vault)
 		);
 	}
 
@@ -608,20 +621,23 @@ export class ExportService {
 		const outputFolderName = FileOperations.generateSafeFilename(
 			activeFile.basename
 		);
-		const outputFolderPath = `${outputFolder}/${outputFolderName}`.replace(
-			/^\/+/,
-			""
-		);
+		const outputFolderPath = joinNormPath(outputFolder, outputFolderName);
 		const fileNames = getExportFileNames("typst");
 
 		return {
 			outputFolderPath,
 			outputFileName: fileNames.OUTPUT_FILENAME,
-			outputFilePath: `${outputFolderPath}/${fileNames.OUTPUT_FILENAME}`,
-			headerPath: `${outputFolderPath}/${fileNames.HEADER}`,
-			preamblePath: `${outputFolderPath}/${fileNames.PREAMBLE}`,
-			bibPath: `${outputFolderPath}/${fileNames.BIBLIOGRAPHY}`,
-			attachmentsPath: `${outputFolderPath}/${fileNames.ATTACHMENTS_FOLDER}`,
+			outputFilePath: joinNormPath(
+				outputFolderPath,
+				fileNames.OUTPUT_FILENAME
+			),
+			headerPath: joinNormPath(outputFolderPath, fileNames.HEADER),
+			preamblePath: joinNormPath(outputFolderPath, fileNames.PREAMBLE),
+			bibPath: joinNormPath(outputFolderPath, fileNames.BIBLIOGRAPHY),
+			attachmentsPath: joinNormPath(
+				outputFolderPath,
+				fileNames.ATTACHMENTS_FOLDER
+			),
 		};
 	}
 

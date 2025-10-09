@@ -8,17 +8,14 @@ import {
 	TFile,
 } from "obsidian";
 import { TypstExportSettingTab } from "./export_longform/settings";
-import { 
+import {
 	ExportService,
 	EXPORT_MESSAGES,
 	DIALOG_CONFIG,
 	ExportConfig,
-	ExternalExportDialogResult
+	ExternalExportDialogResult,
 } from "./utils";
-import {
-	ExportPluginSettings,
-	DEFAULT_SETTINGS,
-} from "./export_longform";
+import { ExportPluginSettings, DEFAULT_SETTINGS } from "./export_longform";
 
 // Use require for Electron compatibility in Obsidian
 const { remote } = require("electron");
@@ -39,13 +36,13 @@ export default class ExportPaperPlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
-		
+
 		// Initialize services
 		this.exportService = new ExportService(this.app);
 
 		// Register commands
 		this.registerCommands();
-		
+
 		// Add settings tab
 		this.addSettingTab(new TypstExportSettingTab(this.app, this));
 	}
@@ -67,11 +64,11 @@ export default class ExportPaperPlugin extends Plugin {
 				if (!(activeFile instanceof TFile)) {
 					return false;
 				}
-				
+
 				if (checking) {
 					return true;
 				}
-				
+
 				this.handleVaultExport(activeFile);
 				return true;
 			},
@@ -86,11 +83,11 @@ export default class ExportPaperPlugin extends Plugin {
 				if (!(activeFile instanceof TFile)) {
 					return false;
 				}
-				
+
 				if (checking) {
 					return true;
 				}
-				
+
 				this.handleExternalExport(activeFile);
 				return true;
 			},
@@ -108,13 +105,13 @@ export default class ExportPaperPlugin extends Plugin {
 				if (checking) {
 					return editor.somethingSelected();
 				}
-				
+
 				const activeFile = ctx.file;
 				if (!activeFile) {
 					new Notice(EXPORT_MESSAGES.NO_FILE);
 					return;
 				}
-				
+
 				const selection = editor.getSelection();
 				this.handleSelectionExport(activeFile, selection);
 			},
@@ -128,11 +125,11 @@ export default class ExportPaperPlugin extends Plugin {
 		try {
 			const config: ExportConfig = {
 				activeFile,
-				settings: this.settings
+				settings: this.settings,
 			};
 
 			const result = await this.exportService.exportToVault(config);
-
+			console.log(result);
 			if (!result.success) {
 				new Notice(result.message);
 				if (result.error) {
@@ -151,7 +148,7 @@ export default class ExportPaperPlugin extends Plugin {
 	private async handleExternalExport(activeFile: TFile): Promise<void> {
 		try {
 			const dialogResult = await this.showFolderPicker();
-			
+
 			if (dialogResult.cancelled || !dialogResult.selectedPath) {
 				new Notice(EXPORT_MESSAGES.CANCELLED);
 				return;
@@ -160,10 +157,12 @@ export default class ExportPaperPlugin extends Plugin {
 			const config: ExportConfig = {
 				activeFile,
 				settings: this.settings,
-				outputPath: dialogResult.selectedPath
+				outputPath: dialogResult.selectedPath,
 			};
 
-			const result = await this.exportService.exportToExternalFolder(config);
+			const result = await this.exportService.exportToExternalFolder(
+				config
+			);
 
 			if (!result.success) {
 				new Notice(result.message);
@@ -184,7 +183,10 @@ export default class ExportPaperPlugin extends Plugin {
 	/**
 	 * Handle selection export to clipboard
 	 */
-	private async handleSelectionExport(activeFile: TFile, selection: string): Promise<void> {
+	private async handleSelectionExport(
+		activeFile: TFile,
+		selection: string
+	): Promise<void> {
 		try {
 			const result = await this.exportService.exportSelectionToClipboard(
 				activeFile,
@@ -200,7 +202,9 @@ export default class ExportPaperPlugin extends Plugin {
 			}
 		} catch (error) {
 			console.error("Failed to handle selection export:", error);
-			new Notice("Failed to export selection. Check console for details.");
+			new Notice(
+				"Failed to export selection. Check console for details."
+			);
 		}
 	}
 
@@ -209,13 +213,14 @@ export default class ExportPaperPlugin extends Plugin {
 	 */
 	private async showFolderPicker(): Promise<ExternalExportDialogResult> {
 		try {
-			const result: OpenDialogReturnValue = await remote.dialog.showOpenDialog({
-				properties: DIALOG_CONFIG.PROPERTIES,
-			});
+			const result: OpenDialogReturnValue =
+				await remote.dialog.showOpenDialog({
+					properties: DIALOG_CONFIG.PROPERTIES,
+				});
 
 			return {
 				cancelled: result.canceled,
-				selectedPath: result.canceled ? undefined : result.filePaths[0]
+				selectedPath: result.canceled ? undefined : result.filePaths[0],
 			};
 		} catch (error) {
 			console.error("Error opening folder picker:", error);
