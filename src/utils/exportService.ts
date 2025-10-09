@@ -1,4 +1,4 @@
-import { TFile, App, Notice, FileSystemAdapter } from "obsidian";
+import { TFile, App, Notice, FileSystemAdapter, normalizePath } from "obsidian";
 import { FileOperations } from "./fileOperations";
 import { FileManagementService } from "./fileManagementService";
 import { ExportMessageBuilder } from "./messageBuilder";
@@ -41,13 +41,14 @@ export class ExportService {
 				return "";
 			}
 
-			const file = this.app.vault.getFileByPath(path);
+			const normalizedPath = normalizePath(path);
+			const file = this.app.vault.getFileByPath(normalizedPath);
 			if (!file) {
-				new Notice(`⚠️ Template file not found: ${path} (from frontmatter)`);
+				new Notice(`⚠️ Template file not found: ${normalizedPath} (from frontmatter)`);
 				return "";
 			}
 
-			return path;
+			return normalizedPath;
 		}
 
 		// Fall back to settings
@@ -77,7 +78,7 @@ export class ExportService {
 				return "";
 			}
 
-			return path;
+			return normalizePath(path);
 		}
 
 		// Fall back to settings
@@ -97,13 +98,14 @@ export class ExportService {
 				return "";
 			}
 
-			const file = this.app.vault.getFileByPath(path);
+			const normalizedPath = normalizePath(path);
+			const file = this.app.vault.getFileByPath(normalizedPath);
 			if (!file) {
-				new Notice(`⚠️ Bibliography file not found: ${path} (from frontmatter)`);
+				new Notice(`⚠️ Bibliography file not found: ${normalizedPath} (from frontmatter)`);
 				return "";
 			}
 
-			return path;
+			return normalizedPath;
 		}
 
 		// Fall back to settings
@@ -249,12 +251,18 @@ export class ExportService {
 				settings
 			);
 
-			// Create output folder
-			await this.app.vault
-				.createFolder(exportPaths.outputFolderPath)
-				.catch((error) => {
-					console.error("Failed to create output folder:", error);
-				});
+			// Create output folder if it doesn't exist
+			const existingFolder = this.app.vault.getAbstractFileByPath(exportPaths.outputFolderPath);
+			if (!existingFolder) {
+				await this.app.vault
+					.createFolder(exportPaths.outputFolderPath)
+					.catch((error) => {
+						// Ignore EEXIST errors - folder already exists
+						if (!error.message?.includes('Folder already exists')) {
+							console.error("Failed to create output folder:", error);
+						}
+					});
+			}
 
 			// Build export message
 			const messageBuilder = new ExportMessageBuilder(
@@ -273,7 +281,8 @@ export class ExportService {
 			await this.fileManager.handleMediaFilesVault(
 				parsedContents.media_files,
 				exportPaths.attachmentsPath,
-				messageBuilder
+				messageBuilder,
+				settings.replace_existing_files
 			);
 
 			// 3. Handle supporting files (can override template defaults)
@@ -408,7 +417,8 @@ export class ExportService {
 		await this.fileManager.handleBibFileExternal(
 			bibFile || undefined,
 			exportPaths.bibPath,
-			messageBuilder
+			messageBuilder,
+			settings.replace_existing_files
 		);
 	}
 
@@ -435,7 +445,8 @@ export class ExportService {
 		await this.fileManager.handleBibFileVault(
 			bibFile || undefined,
 			exportPaths.bibPath,
-			messageBuilder
+			messageBuilder,
+			settings.replace_existing_files
 		);
 	}
 

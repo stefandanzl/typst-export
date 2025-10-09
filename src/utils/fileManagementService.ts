@@ -149,7 +149,8 @@ export class FileManagementService {
 	async handleBibFileExternal(
 		bibFile: TFile | undefined,
 		bibPath: string,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		replaceExisting: boolean = true
 	): Promise<void> {
 		if (!bibFile) {
 			messageBuilder.addBibMessage('not_found');
@@ -157,13 +158,24 @@ export class FileManagementService {
 		}
 
 		const bibExists = FileOperations.fileExists(bibPath);
-		
-		if (!bibExists) {
-			FileOperations.copyFileToExternal(this.vaultAdapter, bibFile, bibPath);
-			messageBuilder.addBibMessage('copying');
-		} else {
+
+		if (bibExists && !replaceExisting) {
 			messageBuilder.addBibMessage('none');
+			return;
 		}
+
+		if (bibExists) {
+			// Delete existing file first
+			try {
+				const fs = require('fs');
+				fs.unlinkSync(bibPath);
+			} catch (error) {
+				console.error(`Failed to delete existing bib file: ${bibPath}`, error);
+			}
+		}
+
+		FileOperations.copyFileToExternal(this.vaultAdapter, bibFile, bibPath);
+		messageBuilder.addBibMessage('copying');
 	}
 
 	/**
@@ -172,7 +184,8 @@ export class FileManagementService {
 	async handleBibFileVault(
 		bibFile: TFile | undefined,
 		bibPath: string,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		replaceExisting: boolean = true
 	): Promise<void> {
 		if (!bibFile) {
 			messageBuilder.addBibMessage('not_found');
@@ -180,12 +193,20 @@ export class FileManagementService {
 		}
 
 		const existingBib = this.vault.getFileByPath(bibPath);
-		
+
+		if (existingBib && !replaceExisting) {
+			messageBuilder.addBibMessage('none');
+			return;
+		}
+
 		if (!existingBib) {
 			await this.vault.copy(bibFile, bibPath);
 			messageBuilder.addBibMessage('copying');
 		} else {
-			messageBuilder.addBibMessage('none');
+			// Replace existing file
+			await this.vault.delete(existingBib);
+			await this.vault.copy(bibFile, bibPath);
+			messageBuilder.addBibMessage('copying'); // Use 'copying' since 'overwriting' is not available
 		}
 	}
 
