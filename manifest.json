@@ -1,10 +1,10 @@
 {
-	"id": "latex-exporter",
-	"name": "Latex Exporter",
+	"id": "typst-export",
+	"name": "Typst export",
 	"version": "0.1.11",
 	"minAppVersion": "0.15.0",
-	"description": "Write a LaTeX paper.",
-	"author": "Matthew S. Scott",
-	"authorUrl": "https://mscott99.github.io/matthew_s_scott_zettel/",
+	"description": "Export markdown to typst",
+	"author": "Stefan Danzl",
+	"authorUrl": "https://github.com/stefandanzl",
 	"isDesktopOnly": true
 }

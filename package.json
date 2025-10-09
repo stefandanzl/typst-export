@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "typst-export",
 	"version": "0.1.1",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Obsidian plugin to export with typst.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

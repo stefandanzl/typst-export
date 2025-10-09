@@ -3,7 +3,7 @@
 version: "3"
 
 vars:
-    PLUGIN: latex-exporter
+    PLUGIN: typst-export
     DIR_PLUGIN: "{{.VAULTS_DIR}}/{{.VAULT_NAME}}/.obsidian/plugins/{{.PLUGIN}}"
     VERSION:
         sh: node -e "console.log(require('./package.json').version)"
@@ -18,8 +18,8 @@ tasks:
             - task: copy
     copy:
         cmds:
-            - powershell -c "Copy-Item main.js '{{.DIR_PLUGIN}}/main.js'"
-            - powershell -c "Copy-Item manifest.json '{{.DIR_PLUGIN}}/manifest.json'"
+            - cp main.js '{{.DIR_PLUGIN}}/main.js'
+            - cp manifest.json '{{.DIR_PLUGIN}}/manifest.json'
 
     build:
         cmds:
