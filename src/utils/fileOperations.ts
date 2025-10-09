@@ -8,6 +8,7 @@ import {
 	normalizePath,
 } from "obsidian";
 import { getExportFileNames } from "./constants";
+import { joinNormPath } from ".";
 
 /**
  * Utility class for common file operations used in export functionality
@@ -81,7 +82,7 @@ export class FileOperations {
 		filePath: string
 	): Promise<boolean> {
 		try {
-			const fullPath = vaultAdapter.getFullPath(filePath);
+			const fullPath = vaultAdapter.getFullPath(normalizePath(filePath));
 			await vaultAdapter.stat(fullPath);
 			return true;
 		} catch (error) {
@@ -123,29 +124,20 @@ export class FileOperations {
 		exportFormat: "typst" = "typst"
 	) {
 		const outputFolderName = this.generateSafeFilename(activeFile.basename);
-		const outputFolderPath = normalizePath(
-			path.join(baseFolderPath, outputFolderName)
-		);
+		const outputFolderPath = joinNormPath(baseFolderPath, outputFolderName);
+
 		const fileNames = getExportFileNames(exportFormat);
 		const outputFileName = fileNames.OUTPUT_FILENAME;
-		const outputFilePath = normalizePath(
-			path.join(outputFolderPath, outputFileName)
-		);
+		const outputFilePath = joinNormPath(outputFolderPath, outputFileName);
 
 		return {
 			outputFolderPath,
 			outputFileName,
 			outputFilePath,
-			headerPath: normalizePath(
-				path.join(outputFolderPath, fileNames.HEADER)
-			),
-			preamblePath: normalizePath(
-				path.join(outputFolderPath, fileNames.PREAMBLE)
-			),
-			bibPath: normalizePath(
-				path.join(outputFolderPath, fileNames.BIBLIOGRAPHY)
-			),
-			attachmentsPath: path.join(
+			headerPath: joinNormPath(outputFolderPath, fileNames.HEADER),
+			preamblePath: joinNormPath(outputFolderPath, fileNames.PREAMBLE),
+			bibPath: joinNormPath(outputFolderPath, fileNames.BIBLIOGRAPHY),
+			attachmentsPath: joinNormPath(
 				outputFolderPath,
 				fileNames.ATTACHMENTS_FOLDER
 			),

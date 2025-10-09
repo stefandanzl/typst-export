@@ -42,9 +42,9 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	// Typst support
 	typst_template_path: "",
 	typst_template_folder: "",
-	typst_post_command: "",
+	typst_post_command: "typst compile $filepath",
 	// File replacement behavior
-	replace_existing_files: false,
+	replace_existing_files: true,
 };
 
 export const DEFAULT_TYPST_TEMPLATE = `
