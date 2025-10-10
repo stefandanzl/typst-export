@@ -30,14 +30,41 @@ export class EmbedWikilink implements node {
 	label: string | undefined;
 	custom_label: string | undefined;
 	static get_regexp(): RegExp {
-		// Now captures optional <@label> after the wikilink for custom labels
-		return /(?:(\S*?)::\s*\n?\s*)?!\[\[([\s\S]*?)(?:#([\s\S]+?))?(?:\|([\s\S]*?))?\]\](?:\s*<@([^>]+)>)?/g;
+		// Captures wikilink image and everything on the same line until newline
+		// Format: ![[image]] or ![[image|alt]] followed by optional text until \n
+		return /(?:(\S*?)::\s*\n?\s*)?!\[\[([\s\S]*?)(?:#([\s\S]+?))?(?:\|([\s\S]*?))?\]\]([^\n]*)/g;
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
 		settings: ExportPluginSettings
 	): EmbedWikilink {
-		return new EmbedWikilink(args[1], args[2], args[3], args[4], args[5]);
+		// args[5] contains everything after ]] until newline
+		const trailingText = args[5] || "";
+
+		// Extract <@label> and caption from trailing text
+		let label: string | undefined;
+		let caption: string | undefined;
+
+		if (trailingText) {
+			const labelMatch = /<@([^>]+)>/.exec(trailingText);
+
+			if (labelMatch) {
+				label = labelMatch[1];
+				// Remove the label from text and trim to get caption
+				caption = trailingText.replace(/<@[^>]+>/, '').trim();
+				if (caption === "") caption = undefined;
+			} else {
+				// No label, entire trailing text is caption
+				caption = trailingText.trim();
+				if (caption === "") caption = undefined;
+			}
+		}
+
+		// args[4] is the |displayed text inside [[]]
+		// Use caption from trailing text, or fallback to displayed text
+		const displayText = caption || args[4];
+
+		return new EmbedWikilink(args[1], args[2], args[3], displayText, label);
 	}
 	constructor(
 		attribute: string | undefined,
@@ -301,20 +328,44 @@ export class Table implements node {
 	file_of_origin: TFile;
 
 	static get_regexp(): RegExp {
-		// Matches markdown tables with optional caption {!text} and optional label {#id}
-		// Now supports plain markdown tables without any metadata
-		return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)(?:\s*\{!([^}]+)\})?(?:\s*\{#([^}]+)\})?/gm;
+		// Matches markdown tables with optional caption/label line after
+		// Format: Caption<@label> or <@label>Caption or <@label> or Caption or nothing
+		// Don't consume trailing newline in data rows so caption pattern can match
+		return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)(?:([^\n]+))?/gm;
 	}
 
 	static build_from_match(
 		match: RegExpMatchArray,
 		settings: ExportPluginSettings
-		// current_file: TFile
 	): Table {
 		const headerLine = match[1]; // Header row content
 		const dataRows = match[2]; // All data rows
-		const caption = match[3]; // Optional caption from {!text}
-		const tableId = match[4]; // Optional table ID from {#id}
+		const captionLine = match[3]; // Optional line after table
+
+		// DEBUG: Log what was captured
+		console.log("Table regex matched:");
+		console.log("  Full match length:", match[0].length);
+		console.log("  Full match:", JSON.stringify(match[0]));
+		console.log("  Caption line:", JSON.stringify(captionLine));
+
+		let caption: string | undefined;
+		let tableId: string | undefined;
+
+		if (captionLine) {
+			// Extract label using <@label> pattern
+			const labelMatch = /<@([^>]+)>/.exec(captionLine);
+
+			if (labelMatch) {
+				tableId = labelMatch[1];
+				// Remove the label from caption line and trim
+				caption = captionLine.replace(/<@[^>]+>/, '').trim();
+				if (caption === "") caption = undefined;
+			} else {
+				// No label, entire line is caption
+				caption = captionLine.trim();
+				if (caption === "") caption = undefined;
+			}
+		}
 
 		return new Table(headerLine, dataRows, caption, tableId);
 	}
@@ -780,15 +831,44 @@ export class MarkdownImage implements node {
 	file_of_origin: TFile;
 
 	static get_regexp(): RegExp {
-		// Matches ![alt](path)<@optional-label> but not hyperlinks (no http/https)
-		return /!\[([^\]]*)\]\((?!https?:\/\/)([^\s)]+)\)(?:\s*<@([^>]+)>)?/g;
+		// Matches ![alt](path) and captures everything on the same line until newline
+		return /!\[([^\]]*)\]\((?!https?:\/\/)([^\s)]+)\)([^\n]*)/g;
 	}
 
 	static build_from_match(
 		args: RegExpMatchArray,
 		settings: ExportPluginSettings
 	): MarkdownImage {
-		return new MarkdownImage(args[1], args[2], args[3]);
+		// args[1] = alt text inside []
+		// args[2] = path inside ()
+		// args[3] = everything after ) until newline
+		const altText = args[1];
+		const imagePath = args[2];
+		const trailingText = args[3] || "";
+
+		// Extract <@label> and caption from trailing text
+		let label: string | undefined;
+		let caption: string | undefined;
+
+		if (trailingText) {
+			const labelMatch = /<@([^>]+)>/.exec(trailingText);
+
+			if (labelMatch) {
+				label = labelMatch[1];
+				// Remove the label from text and trim to get caption
+				caption = trailingText.replace(/<@[^>]+>/, '').trim();
+				if (caption === "") caption = undefined;
+			} else {
+				// No label, entire trailing text is caption
+				caption = trailingText.trim();
+				if (caption === "") caption = undefined;
+			}
+		}
+
+		// Use caption from trailing text, or fallback to alt text
+		const finalCaption = caption || altText;
+
+		return new MarkdownImage(finalCaption, imagePath, label);
 	}
 
 	constructor(alt: string, path: string, custom_label?: string) {
@@ -1311,18 +1391,18 @@ export class Citation implements node {
 		buffer_offset: number,
 		settings: ExportPluginSettings,
 	): Promise<number> {
-		// Typst bibliography citations use @key format
+		// Typst bibliography citations use @key or #cite(<key>) format
 		let citestring = "@" + this.id;
-		
+
 		// Handle different citation types with Typst cite function
 		if (this.type === "parenthesis") {
-			citestring = "#cite(" + this.id + ")";
+			citestring = "#cite(<" + this.id + ">)";
 		} else if (this.type === "year") {
-			citestring = "#cite(" + this.id + ", form: \"year\")";
+			citestring = "#cite(<" + this.id + ">, form: \"year\")";
 		} else if (this.type === "txt") {
-			citestring = "#cite(" + this.id + ", form: \"prose\")";
+			citestring = "#cite(<" + this.id + ">, form: \"prose\")";
 		}
-		
+
 		// Add suffix if present
 		if (this.result !== undefined) {
 			if (this.type === "parenthesis" || this.type === "year" || this.type === "txt") {
@@ -1333,7 +1413,7 @@ export class Citation implements node {
 				citestring += " " + this.result;
 			}
 		}
-		
+
 		return buffer_offset + buffer.write(citestring, buffer_offset);
 	}
 }
@@ -1567,9 +1647,9 @@ export class PandocMultiCitation implements node {
 		if (this.type === "parenthesis") {
 			buffer_offset += buffer.write("#cite(", buffer_offset);
 			for (const id of this.ids.slice(0, -1)) {
-				buffer_offset += buffer.write(id + ", ", buffer_offset);
+				buffer_offset += buffer.write("<" + id + ">, ", buffer_offset);
 			}
-			buffer_offset += buffer.write(this.ids[this.ids.length - 1] + ")", buffer_offset);
+			buffer_offset += buffer.write("<" + this.ids[this.ids.length - 1] + ">)", buffer_offset);
 		} else {
 			// Multiple @key citations
 			for (let i = 0; i < this.ids.length; i++) {

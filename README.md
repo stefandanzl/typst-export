@@ -7,17 +7,19 @@ Write academic papers directly in Obsidian! Export an Obsidian note to a full-fl
 ### Images & Figures
 | Feature | Syntax | Reference |
 |---------|--------|-----------|
-| Wikilink image | `![[image.png\|Caption]]` | `@fig-image.png` |
-| Wikilink with label | `![[image.png\|Caption]]{#custom}` | `@custom` |
-| Markdown image | `![Caption](image.png)` | `@fig-image.png` |
-| Markdown with label | `![Caption](image.png){#fig-custom}` | `@fig-custom` |
+| Wikilink image | `![[image.png\|Caption]]` | No label (not referenceable) |
+| Wikilink with label | `![[image.png\|Caption]]<@custom>` | `@custom` |
+| Markdown image | `![Caption](image.png)` | No label (not referenceable) |
+| Markdown with label | `![Caption](image.png)<@diagram>` | `@diagram` |
 
 ### Tables
 | Feature | Syntax | Reference |
 |---------|--------|-----------|
-| Basic table | `\| H1 \| H2 \|\n\|----\|----\|\n\| C1 \| C2 \|` | Auto-generated |
-| With caption | Add `{!Caption text}` after table | Auto-generated |
-| With label | Add `{!Caption}{#my-table}` after table | `@my-table` |
+| Basic table | `\| H1 \| H2 \|\n\|----\|----\|\n\| C1 \| C2 \|` | No label (not referenceable) |
+| With caption only | Table + newline + `Caption text` | No label |
+| Caption with label | Table + newline + `Caption<@my-table>` | `@my-table` |
+| Label with caption | Table + newline + `<@my-table>Caption` | `@my-table` |
+| Label only | Table + newline + `<@my-table>` | `@my-table` |
 
 ### Math & Equations
 | Feature | Syntax | Reference |
@@ -45,12 +47,12 @@ Write academic papers directly in Obsidian! Export an Obsidian note to a full-fl
 - The plugin will use the alias as the bibliography key
 
 ### Cross-References
-| Type | Label Format | Example |
-|------|--------------|---------|
-| Images | `fig-*` or custom | `@fig-diagram` or `@my-label` |
-| Tables | `tbl-*` or custom | `@tbl-results` |
-| Equations | `eq-*` | `@eq-einstein` |
-| Headers | `loc-*` | `@loc-introduction` |
+| Type | Label Syntax | Example | Notes |
+|------|--------------|---------|-------|
+| Images | `<@label>` | `@diagram` | No auto-labeling; must explicitly add `<@label>` |
+| Tables | `<@label>` | `@results` | No auto-labeling; must explicitly add `<@label>` |
+| Equations | `{#eq-label}` | `@eq-einstein` | Still uses `{#...}` syntax |
+| Headers/Wikilinks | Auto (internal) | `@loc-introduction` | Auto-generated with `loc-` prefix (internal only) |
 
 ### Frontmatter Overrides (Optional, main file only)
 ```yaml
