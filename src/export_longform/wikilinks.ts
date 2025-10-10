@@ -51,7 +51,7 @@ export class EmbedWikilink implements node {
 			if (labelMatch) {
 				label = labelMatch[1];
 				// Remove the label from text and trim to get caption
-				caption = trailingText.replace(/<@[^>]+>/, '').trim();
+				caption = trailingText.replace(/<@[^>]+>/, "").trim();
 				if (caption === "") caption = undefined;
 			} else {
 				// No label, entire trailing text is caption
@@ -211,7 +211,7 @@ export class EmbedWikilink implements node {
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		console.error(
 			"Embed wikilink " +
@@ -277,7 +277,7 @@ export class Plot implements node {
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		// Typst figure syntax
 		buffer_offset += buffer.write("#figure(\n", buffer_offset);
@@ -285,7 +285,7 @@ export class Plot implements node {
 			'  image("' + "Attachments/" + this.image.name + '"),\n',
 			buffer_offset
 		);
-		
+
 		let caption_text: string;
 		if (this.caption === undefined) {
 			caption_text = "";
@@ -301,21 +301,21 @@ export class Plot implements node {
 		} else {
 			caption_text = this.caption;
 		}
-		
+
 		buffer_offset += buffer.write(
-			'  caption: [' + caption_text + '],\n',
+			"  caption: [" + caption_text + "],\n",
 			buffer_offset
 		);
-		
+
 		if (this.label) {
 			buffer_offset += buffer.write(
-				') <' + this.label + '>\n',
+				") <" + this.label + ">\n",
 				buffer_offset
 			);
 		} else {
 			buffer_offset += buffer.write(")\n", buffer_offset);
 		}
-		
+
 		return buffer_offset;
 	}
 }
@@ -331,7 +331,11 @@ export class Table implements node {
 		// Matches markdown tables with optional caption/label line after
 		// Format: Caption<@label> or <@label>Caption or <@label> or Caption or nothing
 		// Don't consume trailing newline in data rows so caption pattern can match
-		return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)(?:([^\n]+))?/gm;
+		// Caption must be on the VERY NEXT line (only one \n), not after blank lines
+		// return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)(?:([^\n]+))?/gm;
+		// return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)(?:\n([^\n]+))?(?=\n|$)/gm;
+		return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.+\|\s*\n?)*)((?:\n(?!\s*\n)([^\n]+))?)(?=\n{2,}|$)/gm;
+		// return /\|(.+)\|\s*\n\s*\|[\s\-\|:]+\|\s*\n((?:\s*\|.*\|\s*\n?)*)((?:\n(?!\s*\n)(?!#)([^\n]+))?)/gm;
 	}
 
 	static build_from_match(
@@ -346,6 +350,7 @@ export class Table implements node {
 		console.log("Table regex matched:");
 		console.log("  Full match length:", match[0].length);
 		console.log("  Full match:", JSON.stringify(match[0]));
+		console.log("  Data rows:", JSON.stringify(dataRows));
 		console.log("  Caption line:", JSON.stringify(captionLine));
 
 		let caption: string | undefined;
@@ -358,7 +363,7 @@ export class Table implements node {
 			if (labelMatch) {
 				tableId = labelMatch[1];
 				// Remove the label from caption line and trim
-				caption = captionLine.replace(/<@[^>]+>/, '').trim();
+				caption = captionLine.replace(/<@[^>]+>/, "").trim();
 				if (caption === "") caption = undefined;
 			} else {
 				// No label, entire line is caption
@@ -494,24 +499,33 @@ export class Table implements node {
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		// Typst table syntax
 		buffer_offset += buffer.write("#figure(\n", buffer_offset);
 		buffer_offset += buffer.write("  table(\n", buffer_offset);
-		buffer_offset += buffer.write(`    columns: ${this.headers.length},\n`, buffer_offset);
+		buffer_offset += buffer.write(
+			`    columns: ${this.headers.length},\n`,
+			buffer_offset
+		);
 		buffer_offset += buffer.write("    stroke: 0.5pt,\n", buffer_offset);
-		buffer_offset += buffer.write("    fill: (x, y) => if y == 0 { gray.lighten(80%) },\n", buffer_offset);
-		
+		buffer_offset += buffer.write(
+			"    fill: (x, y) => if y == 0 { gray.lighten(80%) },\n",
+			buffer_offset
+		);
+
 		// Write headers
 		for (let i = 0; i < this.headers.length; i++) {
-			buffer_offset += buffer.write(`    [*${this.headers[i]}*]`, buffer_offset);
+			buffer_offset += buffer.write(
+				`    [*${this.headers[i]}*]`,
+				buffer_offset
+			);
 			if (i < this.headers.length - 1) {
 				buffer_offset += buffer.write(",", buffer_offset);
 			}
 			buffer_offset += buffer.write("\n", buffer_offset);
 		}
-		
+
 		// Write data rows
 		for (const row of this.rows) {
 			buffer_offset += buffer.write(",\n", buffer_offset);
@@ -523,13 +537,13 @@ export class Table implements node {
 				buffer_offset += buffer.write("\n", buffer_offset);
 			}
 		}
-		
+
 		buffer_offset += buffer.write("  ),\n", buffer_offset);
 
 		// Handle caption
 		if (this.caption !== undefined && this.caption !== "") {
 			buffer_offset += buffer.write(
-				'  caption: [' + this.caption + '],\n',
+				"  caption: [" + this.caption + "],\n",
 				buffer_offset
 			);
 		} else {
@@ -541,13 +555,14 @@ export class Table implements node {
 				"| ------- | ------- |\n" +
 				"| Cell1   | Cell2   |\n" +
 				"{!Your caption here}{#optional-label}\n\n" +
-				"In note: " + (this.file_of_origin ? this.file_of_origin.path : "unknown");
+				"In note: " +
+				(this.file_of_origin ? this.file_of_origin.path : "unknown");
 			notice_and_warn(warning);
 		}
 
 		if (this.label) {
 			buffer_offset += buffer.write(
-				') <' + this.label + '>\n',
+				") <" + this.label + ">\n",
 				buffer_offset
 			);
 		} else {
@@ -620,7 +635,7 @@ export class Wikilink implements node {
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		if (this.header === undefined) {
 			this.header = "";
@@ -757,11 +772,11 @@ export class Environment implements node {
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		// Typst doesn't have built-in theorem environments, so we'll use a custom approach
 		let env_title = "";
-		
+
 		if (this.type !== "remark" && settings.display_env_titles) {
 			if (this.display_title !== undefined) {
 				if (this.display_title !== "") {
@@ -784,40 +799,46 @@ export class Environment implements node {
 				env_title = this.address_of_origin;
 			}
 		}
-		
+
 		// Start environment block
 		buffer_offset += buffer.write("#block(\n", buffer_offset);
-		buffer_offset += buffer.write("  fill: rgb(\"#f0f0f0\"),\n", buffer_offset);
+		buffer_offset += buffer.write(
+			'  fill: rgb("#f0f0f0"),\n',
+			buffer_offset
+		);
 		buffer_offset += buffer.write("  inset: 8pt,\n", buffer_offset);
 		buffer_offset += buffer.write("  radius: 4pt,\n", buffer_offset);
 		buffer_offset += buffer.write("  width: 100%,\n", buffer_offset);
 		buffer_offset += buffer.write("  [\n", buffer_offset);
-		
+
 		// Add environment header
 		buffer_offset += buffer.write(
 			`    *${this.type.charAt(0).toUpperCase() + this.type.slice(1)}*`,
 			buffer_offset
 		);
-		
+
 		if (env_title) {
 			buffer_offset += buffer.write(` *(${env_title})*`, buffer_offset);
 		}
-		
+
 		// Add label if present
 		if (this.label !== undefined && this.type !== "proof") {
-			buffer_offset += buffer.write(` <${format_label(this.label)}>`, buffer_offset);
+			buffer_offset += buffer.write(
+				` <${format_label(this.label)}>`,
+				buffer_offset
+			);
 		}
-		
+
 		buffer_offset += buffer.write("\n\n", buffer_offset);
-		
+
 		// Add content
 		for (const e of this.children) {
 			buffer_offset = await e.typst(buffer, buffer_offset, settings);
 		}
-		
+
 		buffer_offset += buffer.write("  ]\n", buffer_offset);
 		buffer_offset += buffer.write(")\n", buffer_offset);
-		
+
 		return buffer_offset;
 	}
 }
@@ -856,7 +877,7 @@ export class MarkdownImage implements node {
 			if (labelMatch) {
 				label = labelMatch[1];
 				// Remove the label from text and trim to get caption
-				caption = trailingText.replace(/<@[^>]+>/, '').trim();
+				caption = trailingText.replace(/<@[^>]+>/, "").trim();
 				if (caption === "") caption = undefined;
 			} else {
 				// No label, entire trailing text is caption
@@ -940,13 +961,13 @@ export class MarkdownImage implements node {
 		}
 
 		buffer_offset += buffer.write(
-			'  caption: [' + caption_text + '],\n',
+			"  caption: [" + caption_text + "],\n",
 			buffer_offset
 		);
 
 		if (this.label) {
 			buffer_offset += buffer.write(
-				') <' + this.label + '>\n',
+				") <" + this.label + ">\n",
 				buffer_offset
 			);
 		} else {
@@ -993,7 +1014,7 @@ export class Hyperlink implements node {
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		// Typst link syntax: #link("url")[text]
 		return (
@@ -1140,7 +1161,7 @@ export class UnrolledWikilink implements node {
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		const hasBeenEmbedded =
 			this.unroll_data.parsed_file_bundle[this.address] !== undefined;
@@ -1207,27 +1228,24 @@ export class UnrolledWikilink implements node {
 			this.header
 		);
 		if (this.displayed !== undefined) {
-			// Typst link with custom text: #link(label("ref"))[custom text]  
+			// Typst link with custom text: #link(label("ref"))[custom text]
 			return (
 				buffer_offset +
 				buffer.write(
-					"#link(label(\"" + label + "\"))[" + this.displayed + "]",
+					'#link(label("' + label + '"))[' + this.displayed + "]",
 					buffer_offset
 				)
 			);
 		}
 		if (this.header?.toLowerCase().trim() !== "proof") {
 			// Standard reference: @ref
-			return (
-				buffer_offset +
-				buffer.write("@" + label, buffer_offset)
-			);
+			return buffer_offset + buffer.write("@" + label, buffer_offset);
 		} else {
 			// Proof reference with link
 			return (
 				buffer_offset +
 				buffer.write(
-					"#link(label(\"" + label + "\"))[the proof]",
+					'#link(label("' + label + '"))[the proof]',
 					buffer_offset
 				)
 			);
@@ -1389,7 +1407,7 @@ export class Citation implements node {
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		// Typst bibliography citations use @key or #cite(<key>) format
 		let citestring = "@" + this.id;
@@ -1398,16 +1416,23 @@ export class Citation implements node {
 		if (this.type === "parenthesis") {
 			citestring = "#cite(<" + this.id + ">)";
 		} else if (this.type === "year") {
-			citestring = "#cite(<" + this.id + ">, form: \"year\")";
+			citestring = "#cite(<" + this.id + '>, form: "year")';
 		} else if (this.type === "txt") {
-			citestring = "#cite(<" + this.id + ">, form: \"prose\")";
+			citestring = "#cite(<" + this.id + '>, form: "prose")';
 		}
 
 		// Add suffix if present
 		if (this.result !== undefined) {
-			if (this.type === "parenthesis" || this.type === "year" || this.type === "txt") {
+			if (
+				this.type === "parenthesis" ||
+				this.type === "year" ||
+				this.type === "txt"
+			) {
 				// Use the supplement parameter for cite function
-				citestring = citestring.replace(")", ", supplement: [" + this.result + "])");
+				citestring = citestring.replace(
+					")",
+					", supplement: [" + this.result + "])"
+				);
 			} else {
 				// For simple @key citations, just append the text
 				citestring += " " + this.result;
@@ -1469,48 +1494,53 @@ export class AliasCitation implements node {
 	id: string;
 	type: string | undefined;
 	result: string | undefined;
-	
+
 	static get_regexp(): RegExp {
 		// Matches: [prefix][[filename|@alias]][suffix] with optional prefix and suffix
 		return /(?:\[([^@\[]*?)\])?\[\[([^\|\]]+)\|(@[a-zA-Z0-9\.\-_]+)\]\](?:\[([^@\[]*?)\])?/g;
 	}
-	
+
 	static build_from_match(
 		args: RegExpMatchArray,
 		settings: ExportPluginSettings
 	): AliasCitation {
 		const prefix = args[1]; // Optional prefix like "std", "txt"
-		const filename = args[2]; // The actual filename  
+		const filename = args[2]; // The actual filename
 		const alias = args[3].substring(1); // Remove @ prefix for citation
 		const suffix = args[4]; // Optional suffix like "p. 14"
-		
+
 		let type = undefined;
 		let result: string | undefined = suffix;
-		
+
 		// Handle prefix for citation type
 		if (prefix !== undefined) {
-			if (prefix === "std" || prefix === "txt" || prefix === "parenthesis" || prefix === "year") {
+			if (
+				prefix === "std" ||
+				prefix === "txt" ||
+				prefix === "parenthesis" ||
+				prefix === "year"
+			) {
 				type = prefix;
 			} else {
 				// If prefix is not a known type, treat it as result text
 				result = prefix;
 			}
 		}
-		
+
 		// Handle suffix - if prefix was a type and we have suffix, use suffix as result
 		if (type !== undefined && suffix !== undefined) {
 			result = suffix;
 		}
-		
+
 		// Special handling for "std" and "txt" in suffix (like regular Citation)
 		if (result === "std" || result === "txt") {
 			type = result;
 			result = undefined;
 		}
-		
+
 		return new AliasCitation(alias, type, result);
 	}
-	
+
 	constructor(id: string, type?: string, suffix?: string) {
 		if (
 			!(
@@ -1529,11 +1559,11 @@ export class AliasCitation implements node {
 		this.id = id;
 		this.result = suffix;
 	}
-	
+
 	async unroll(): Promise<node[]> {
 		return [this];
 	}
-	
+
 	async latex(
 		buffer: Buffer,
 		buffer_offset: number,
@@ -1541,7 +1571,7 @@ export class AliasCitation implements node {
 	): Promise<number> {
 		let citestring = "\\";
 		let citeword;
-		
+
 		if (this.type == "txt") {
 			citeword = "textcite";
 		} else if (this.type == "std") {
@@ -1555,44 +1585,51 @@ export class AliasCitation implements node {
 		} else {
 			throw Error("Invalid type: " + this.type);
 		}
-		
+
 		citestring += citeword;
 		if (this.result !== undefined) {
 			citestring += "[" + this.result + "]";
 		}
 		citestring += "{" + this.id + "}";
-		
+
 		return buffer_offset + buffer.write(citestring, buffer_offset);
 	}
 
 	async typst(
 		buffer: Buffer,
 		buffer_offset: number,
-		settings: ExportPluginSettings,
+		settings: ExportPluginSettings
 	): Promise<number> {
 		// Typst bibliography citations use @key format
 		let citestring = "@" + this.id;
-		
+
 		// Handle different citation types with Typst cite function
 		if (this.type === "parenthesis") {
 			citestring = "#cite(<" + this.id + ">)";
 		} else if (this.type === "year") {
-			citestring = "#cite(<" + this.id + ">, form: \"year\")";
+			citestring = "#cite(<" + this.id + '>, form: "year")';
 		} else if (this.type === "txt") {
-			citestring = "#cite(<" + this.id + ">, form: \"prose\")";
+			citestring = "#cite(<" + this.id + '>, form: "prose")';
 		}
-		
+
 		// Add suffix if present
 		if (this.result !== undefined) {
-			if (this.type === "parenthesis" || this.type === "year" || this.type === "txt") {
+			if (
+				this.type === "parenthesis" ||
+				this.type === "year" ||
+				this.type === "txt"
+			) {
 				// Use the supplement parameter for cite function
-				citestring = citestring.replace(">)", ">, supplement: [" + this.result + "])");
+				citestring = citestring.replace(
+					">)",
+					">, supplement: [" + this.result + "])"
+				);
 			} else {
 				// For simple @key citations, just append the text
 				citestring += " " + this.result;
 			}
 		}
-		
+
 		return buffer_offset + buffer.write(citestring, buffer_offset);
 	}
 }
@@ -1649,7 +1686,10 @@ export class PandocMultiCitation implements node {
 			for (const id of this.ids.slice(0, -1)) {
 				buffer_offset += buffer.write("<" + id + ">, ", buffer_offset);
 			}
-			buffer_offset += buffer.write("<" + this.ids[this.ids.length - 1] + ">)", buffer_offset);
+			buffer_offset += buffer.write(
+				"<" + this.ids[this.ids.length - 1] + ">)",
+				buffer_offset
+			);
 		} else {
 			// Multiple @key citations
 			for (let i = 0; i < this.ids.length; i++) {
