@@ -2,6 +2,98 @@
 
 Write academic papers directly in Obsidian! Export an Obsidian note to a full-fledged Typst document, including embedded content, citations, cross-references, figures, tables, and more. All content visible in Obsidian will be included in the export!
 
+## Quick Syntax Reference
+
+### Images & Figures
+| Feature | Syntax | Reference |
+|---------|--------|-----------|
+| Wikilink image | `![[image.png\|Caption]]` | `@fig-image.png` |
+| Wikilink with label | `![[image.png\|Caption]]{#custom}` | `@custom` |
+| Markdown image | `![Caption](image.png)` | `@fig-image.png` |
+| Markdown with label | `![Caption](image.png){#fig-custom}` | `@fig-custom` |
+
+### Tables
+| Feature | Syntax | Reference |
+|---------|--------|-----------|
+| Basic table | `\| H1 \| H2 \|\n\|----\|----\|\n\| C1 \| C2 \|` | Auto-generated |
+| With caption | Add `{!Caption text}` after table | Auto-generated |
+| With label | Add `{!Caption}{#my-table}` after table | `@my-table` |
+
+### Math & Equations
+| Feature | Syntax | Reference |
+|---------|--------|-----------|
+| Inline math | `$x^2$` | N/A |
+| Display math | `$$x^2$$` | N/A |
+| Labeled equation | `$$E=mc^2$${#eq-einstein}` | `@eq-einstein` |
+| Align environment | `$$\begin{align}...\end{align}$${#eq-sys}` | `@eq-sys-1`, `@eq-sys-2` |
+
+### Citations
+| Feature | Syntax | Notes |
+|---------|--------|-------|
+| Simple citation | `[[@source-note]]` | Links to markdown file in your vault |
+| With locator | `[[@source-note]][p. 42]` or `@source-note[Theorem 3.1]` | Any reference detail |
+| Multiple citations | `[[@source1]][[@source2]]` | Combined in single cite command |
+| Pandoc style | `[@smith2021, p. 14]` | Alternative syntax |
+
+**Citation Notes:**
+- Citations reference **actual markdown files** in your vault (e.g., `sources/Smith - Neural Networks 2021.md`)
+- Use these files to **store notes** about your sources, highlights, thoughts, etc.
+- Set the `aliases` frontmatter value to your **citekey**:
+  ```yaml
+  aliases: ["@smith2021"]
+  ```
+- The plugin will use the alias as the bibliography key
+
+### Cross-References
+| Type | Label Format | Example |
+|------|--------------|---------|
+| Images | `fig-*` or custom | `@fig-diagram` or `@my-label` |
+| Tables | `tbl-*` or custom | `@tbl-results` |
+| Equations | `eq-*` | `@eq-einstein` |
+| Headers | `loc-*` | `@loc-introduction` |
+
+### Frontmatter Overrides (Optional, main file only)
+```yaml
+typst_template: path/to/template.typ
+typst_template_folder: path/to/assets
+typst_bib: path/to/bibliography.bib
+```
+
+### Special Headers & Template Anchors
+
+**Body Content:**
+- Any h1 headers **before** special headers (`# Abstract`, `# Appendix`) are implicitly part of the body
+- If an explicit `# Body` header exists, **only** content under it is exported as body
+- Headers under special sections are treated as **one level lower** (e.g., h1 → h2, h2 → h3)
+
+| Header in Markdown | Template Anchor | Notes |
+|--------------------|-----------------|-------|
+| `# Body` | `{{body}}` | Optional: Explicitly marks body content (if present, only this is exported) |
+| `# Abstract` | `{{abstract}}` | Special section, headers inside are lowered one level |
+| `# Appendix` | `{{appendix}}` | Special section, headers inside are lowered one level |
+| Custom sections | Configure in settings | Additional structured sections |
+
+**Frontmatter values:**
+```yaml
+title: "My Paper Title"
+author: "Author Name"
+```
+These are accessible in your template and can be used for document metadata.
+
+**Template example:**
+```typst
+#set document(
+  title: "{{title}}",
+  author: "{{author}}"
+)
+
+{{abstract}}
+
+{{body}}
+
+{{appendix}}
+```
+
 ## Features
 
 This plugin supports:
