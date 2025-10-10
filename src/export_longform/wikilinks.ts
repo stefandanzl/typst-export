@@ -437,7 +437,7 @@ export class Table implements node {
 		}
 
 		buffer_offset += buffer.write(
-			"\\caption{" + caption_text + "\\label{tbl:" + this.label + "}}\n",
+			"\\caption{" + caption_text + "\\label{tbl-" + this.label + "}}\n",
 			buffer_offset
 		);
 

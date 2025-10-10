@@ -18,7 +18,7 @@ export function format_label(label: string): string {
 		.replace(/}/g, "")
 		.replace(/ /g, "_")
 		.replace(/,/g, "")
-		.replace(/-/g, ":")
+		.replace(/:/g, "-")  // Convert colons to hyphens (reverse of old behavior)
 		.replace(/\$/g, "")
 		.replace(/\\/g, "");
 }
@@ -38,7 +38,7 @@ export function explicit_label(
 function explicit_label_with_address(label: string, address: string) {
 	const match = /^([a-z]+)-(.*)$/.exec(label);
 	if (match) {
-		return format_label(match[1] + ":" + address + "." + match[2]);
+		return format_label(match[1] + "-" + address + "." + match[2]);
 	} else {
 		return format_label(address + "." + label);
 	}
@@ -52,7 +52,7 @@ export async function label_from_location(
 	header?: string | string[],
 ): Promise<string> {
 	if (address_is_image_file(address)) {
-		return format_label("fig:" + address);
+		return format_label("fig-" + address);
 	}
 	if (address === "") {
 		return ""; // empty label
@@ -82,11 +82,11 @@ export async function label_from_location(
 			typeof header === "string" ? header : header.join(".");
 	}
 	if (address === "" || address === data.longform_file.basename) {
-		return format_label("loc:" + resolved_head_label);
+		return format_label("loc-" + resolved_head_label);
 	}
 	return resolved_head_label === ""
-		? format_label("loc:" + address)
-		: format_label("loc:" + address + "." + resolved_head_label);
+		? format_label("loc-" + address)
+		: format_label("loc-" + address + "." + resolved_head_label);
 }
 
 async function resolve_header_label(
