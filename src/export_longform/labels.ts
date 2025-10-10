@@ -51,8 +51,9 @@ export async function label_from_location(
 	settings: ExportPluginSettings,
 	header?: string | string[],
 ): Promise<string> {
+	// Images don't get auto-labels anymore - this function is only for headers/wikilinks
 	if (address_is_image_file(address)) {
-		return format_label("fig-" + address);
+		return ""; // No auto-label for images
 	}
 	if (address === "") {
 		return ""; // empty label

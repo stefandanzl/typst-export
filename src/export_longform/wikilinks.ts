@@ -30,8 +30,8 @@ export class EmbedWikilink implements node {
 	label: string | undefined;
 	custom_label: string | undefined;
 	static get_regexp(): RegExp {
-		// Now captures optional {#label} after the wikilink for custom labels
-		return /(?:(\S*?)::\s*\n?\s*)?!\[\[([\s\S]*?)(?:#([\s\S]+?))?(?:\|([\s\S]*?))?\]\](?:\s*\{#([^}]+)\})?/g;
+		// Now captures optional <@label> after the wikilink for custom labels
+		return /(?:(\S*?)::\s*\n?\s*)?!\[\[([\s\S]*?)(?:#([\s\S]+?))?(?:\|([\s\S]*?))?\]\](?:\s*<@([^>]+)>)?/g;
 	}
 	static build_from_match(
 		args: RegExpMatchArray,
@@ -74,20 +74,13 @@ export class EmbedWikilink implements node {
 				data.media_files.push(file);
 				const p = new Plot(file, data.current_file, this.display);
 
-				// Use custom label if provided, otherwise generate from filename only
+				// Use custom label if provided, otherwise no label
 				if (this.custom_label) {
 					p.label = format_label(this.custom_label);
 				} else {
-					// Use only the filename (without path) for auto-generated labels
-					p.label = await label_from_location(
-						data,
-						file.name,
-						data.current_file,
-						settings
-					);
+					p.label = undefined;
 				}
 
-				// Resolve the label early. We can do this because label_from_location will not need to resolve headers.
 				return [p];
 			}
 		}
@@ -204,7 +197,7 @@ export class EmbedWikilink implements node {
 
 export class Plot implements node {
 	image: TFile;
-	label: string;
+	label: string | undefined;
 	caption: string | undefined;
 	file_of_origin: TFile;
 	constructor(image: TFile, current_file: TFile, caption?: string) {
@@ -787,8 +780,8 @@ export class MarkdownImage implements node {
 	file_of_origin: TFile;
 
 	static get_regexp(): RegExp {
-		// Matches ![alt](path){#optional-label} but not hyperlinks (no http/https)
-		return /!\[([^\]]*)\]\((?!https?:\/\/)([^\s)]+)\)(?:\s*\{#([^}]+)\})?/g;
+		// Matches ![alt](path)<@optional-label> but not hyperlinks (no http/https)
+		return /!\[([^\]]*)\]\((?!https?:\/\/)([^\s)]+)\)(?:\s*<@([^>]+)>)?/g;
 	}
 
 	static build_from_match(
@@ -826,17 +819,11 @@ export class MarkdownImage implements node {
 		this.image = file;
 		data.media_files.push(file);
 
-		// Use custom label if provided, otherwise generate from filename only
+		// Use custom label if provided, otherwise no label
 		if (this.custom_label) {
 			this.label = format_label(this.custom_label);
 		} else {
-			// Use only the filename (without path) for auto-generated labels
-			this.label = await label_from_location(
-				data,
-				file.name,
-				data.current_file,
-				settings
-			);
+			this.label = undefined;
 		}
 
 		return [this];
