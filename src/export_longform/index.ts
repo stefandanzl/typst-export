@@ -16,7 +16,7 @@ export {
 	Wikilink,
 	EmbedWikilink,
 	Hyperlink,
-} from "./wikilinks";
+} from "./nodes";
 export { init_data, unroll_array, DEFAULT_SETTINGS } from "./interfaces";
 export type { node, ExportPluginSettings } from "./interfaces";
 export { Header } from "./headers";

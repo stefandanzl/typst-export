@@ -147,6 +147,7 @@ export type metadata_for_unroll = {
 	header_stack: Header[];
 	media_files: TFile[];
 	bib_keys: string[];
+	labels: Set<string>; // Track all created labels (tables, figures, equations, etc.)
 };
 
 export function init_data(
@@ -169,7 +170,34 @@ export function init_data(
 		header_stack: [], // file-local stack of headers.
 		media_files: [],
 		bib_keys: [],
+		labels: new Set<string>(), // Initialize empty label tracking set
 	} as metadata_for_unroll;
+}
+
+/**
+ * Register a label in the global label set. Warns if duplicate is detected but doesn't crash.
+ * @param data - The metadata context containing the labels set
+ * @param label - The label to register
+ * @param nodeType - Type of node creating the label (for error messages)
+ * @returns true if registered successfully, false if duplicate
+ */
+export function register_label(
+	data: metadata_for_unroll,
+	label: string,
+	nodeType: string
+): boolean {
+	if (data.labels.has(label)) {
+		const warning =
+			`WARNING: Duplicate label "${label}" found in ${nodeType}.\n` +
+			`This label was already used elsewhere in the document.\n` +
+			`In file: ${data.current_file.path}\n` +
+			`Labels must be unique for cross-referencing to work correctly.`;
+		console.error(warning);
+		// Don't use notice_and_warn here to avoid circular dependency
+		return false;
+	}
+	data.labels.add(label);
+	return true;
 }
 
 export function address_is_image_file(address: string) {

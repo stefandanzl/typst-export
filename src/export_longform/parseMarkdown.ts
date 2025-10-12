@@ -32,7 +32,7 @@ import {
 	MarkdownImage,
 	Table,
 	AliasCitation,
-} from "./wikilinks";
+} from "./nodes";
 import {
 	split_inline,
 	ExplicitRef,
@@ -651,6 +651,12 @@ export function parse_inline(
 	inline_arr: node[],
 	settings: ExportPluginSettings
 ): node[] {
+	inline_arr = split_inline<MarkdownImage>(
+		inline_arr,
+		MarkdownImage.get_regexp(),
+		MarkdownImage.build_from_match,
+		settings
+	); // Must be before citations to consume ![](img)@label or ![](img)<@label>caption text
 	inline_arr = split_inline<ExplicitRef>(
 		inline_arr,
 		ExplicitRef.get_regexp(),
@@ -693,12 +699,6 @@ export function parse_inline(
 		Wikilink.build_from_match,
 		settings
 	); // must be before inline math so as to include math in displayed text.
-	inline_arr = split_inline<MarkdownImage>(
-		inline_arr,
-		MarkdownImage.get_regexp(),
-		MarkdownImage.build_from_match,
-		settings
-	); // must be before Hyperlink to catch ![alt](path) before [text](url)
 	inline_arr = split_inline<Hyperlink>(
 		inline_arr,
 		Hyperlink.get_regexp(),
