@@ -677,9 +677,9 @@ export class ExportService {
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
-			console.error("Post-conversion command failed:", error);
+			console.error("Post-conversion command failed:", errorMessage);
 			// console.error("Command was:", command);
-			console.error("Output file path was:", outputFilePath);
+			// console.error("Output file path was:", outputFilePath);
 			new Notice(`Post-conversion command failed: ${errorMessage}`, 8000);
 		}
 	}
