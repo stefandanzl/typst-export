@@ -488,6 +488,8 @@ export class Wikilink implements node {
 	header: string | undefined;
 	displayed: string | undefined;
 	static get_regexp(): RegExp {
+		// example: task:: [[Project Plan#section1|Overview]]
+		// 			[[Meeting Notes]]
 		return /(?:(\S*?)::\s*\n?\s*)?\[\[([\s\S]*?)(?:\#([\s\S]*?))?(?:\|([\s\S]*?))?\]\]/g;
 	}
 	static build_from_match(
@@ -563,6 +565,7 @@ export class Environment implements node {
 	children: node[];
 	// Can parse a label as well
 	static get_regexp(): RegExp {
+		// example: note::{#customID}This is the content::note
 		return /^(\w+?)::(?:\s*?{#([\S ]*?)})?(.*?)::\1/gms;
 	}
 	label: string | undefined;
@@ -893,6 +896,7 @@ export class Hyperlink implements node {
 	address: string;
 	label: string;
 	static get_regexp(): RegExp {
+		//example: [GitHub](https://github.com)
 		return /\[([^\[\]]+?)\]\((https?:\/\/[^\s]+?)\)/g;
 	}
 	static build_from_match(
@@ -1174,6 +1178,7 @@ export class Citation implements node {
 	type: string | undefined;
 	result: string | undefined;
 	static get_regexp(): RegExp {
+		// example: [prefix][[@smith2020]][postfix]
 		return /(?:\[([^@\[]*?)\])?(?:(?:\[\[@([a-zA-Z0-9\.\-_]*)\]\]))(?:\[([^@\[]*?)\])?/g;
 	}
 	static build_from_match(
@@ -1292,6 +1297,7 @@ export class MultiCitation implements node {
 	// TODO: Make this a full item, not a result of an unroll.
 	ids: string[];
 	static get_regexp(): RegExp {
+		// example: [[@knuth1984]][[@lamport1994]][[@turing1936]]
 		return /(?:\[std\])?\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\]\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\](?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?(?:\[\[@([^\]:\|]*?)(?:\#[^\]\|]*?)?(?:\|[^\]]*?)?\]\])?/g;
 	}
 	static build_from_match(args: RegExpMatchArray): MultiCitation {
