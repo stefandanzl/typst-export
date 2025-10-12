@@ -48,10 +48,6 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 };
 
 export const DEFAULT_TYPST_TEMPLATE = `
-#import "preamble.typ": *
-
-{{PREAMBLE}}
-
 #set document(title: "{{title}}", author: "{{author}}")
 #set page(
   paper: "a4",
