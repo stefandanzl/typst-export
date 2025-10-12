@@ -24,8 +24,6 @@ import {
 	Wikilink,
 	Citation,
 	MultiCitation,
-	PandocCitation,
-	PandocMultiCitation,
 	EmbedWikilink,
 	Environment,
 	Hyperlink,
@@ -143,7 +141,7 @@ export async function parse_longform(
 			sections[title] = rendered;
 		}
 
-		console.log("SECTIONS", sections);
+		// console.log("SECTIONS", sections);
 	}
 	return {
 		yaml: parsed_note.yaml,
@@ -205,8 +203,8 @@ export async function write_with_template(
 	output_file: TFile,
 	modify_tfile: (file: TFile, content: string) => Promise<void>
 ) {
-	console.log("PARSED YAML KEYS:", Object.keys(parsed_contents["yaml"]));
-	console.log("PARSED YAML CONTENT:", parsed_contents["yaml"]);
+	// console.log("PARSED YAML KEYS:", Object.keys(parsed_contents["yaml"]));
+	// console.log("PARSED YAML CONTENT:", parsed_contents["yaml"]);
 
 	// Determine format based on template content to use appropriate placeholder syntax
 	const isTypstFormat =
@@ -216,7 +214,7 @@ export async function write_with_template(
 
 	if (isTypstFormat) {
 		// For Typst: Replace ALL {{placeholder}} patterns generically
-		console.log("Processing Typst template with {{placeholder}} syntax");
+		// console.log("Processing Typst template with {{placeholder}} syntax");
 
 		// Create a comprehensive data map from all available sources
 		const dataMap = new Map<string, string>();
@@ -243,9 +241,7 @@ export async function write_with_template(
 					dataMap.get(placeholder) ||
 					dataMap.get(placeholder.toLowerCase()) ||
 					"";
-				console.log(
-					`Replacing {{${placeholder}}} with: "${replacement}"`
-				);
+				//console.log(`Replacing {{${placeholder}}} with: "${replacement}"`);
 				return replacement;
 			}
 		);
@@ -278,18 +274,13 @@ export async function write_with_template(
 					dataMap.get(placeholder) ||
 					dataMap.get(placeholder.toLowerCase()) ||
 					"";
-				console.log(
-					`Replacing $${placeholder}$ with: "${replacement}"`
-				);
+				// console.log(`Replacing $${placeholder}$ with: "${replacement}"`);
 				return replacement;
 			}
 		);
 	}
 
-	console.log(
-		"FINAL TEMPLATE CONTENT SAMPLE:",
-		template_content.substring(0, 500)
-	);
+	// console.log("FINAL TEMPLATE CONTENT SAMPLE:",template_content.substring(0, 500));
 
 	await modify_tfile(output_file, template_content);
 }
@@ -675,22 +666,10 @@ export function parse_inline(
 		MultiCitation.build_from_match,
 		settings
 	);
-	inline_arr = split_inline<PandocMultiCitation>(
-		inline_arr,
-		PandocMultiCitation.get_regexp(),
-		PandocMultiCitation.build_from_match,
-		settings
-	);
 	inline_arr = split_inline<Citation>(
 		inline_arr,
 		Citation.get_regexp(),
 		Citation.build_from_match,
-		settings
-	);
-	inline_arr = split_inline<PandocCitation>(
-		inline_arr,
-		PandocCitation.get_regexp(),
-		PandocCitation.build_from_match,
 		settings
 	);
 	inline_arr = split_inline<Wikilink>(

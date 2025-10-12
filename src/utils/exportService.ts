@@ -262,14 +262,6 @@ export class ExportService {
 		try {
 			const { activeFile, settings } = config;
 
-			// Determine output folder
-			// const outputFolder = this.determineOutputFolder(
-			// 	activeFile,
-			// 	settings
-			// );
-
-			console.debug("E1");
-
 			const outputFolder = settings.base_output_folder;
 			const exportPaths = this.createVaultExportPaths(
 				outputFolder,
@@ -285,7 +277,6 @@ export class ExportService {
 				settings
 			);
 
-			console.debug("E2");
 			// Create output folder if it doesn't exist
 			const existingFolder = this.app.vault.getAbstractFileByPath(
 				exportPaths.outputFolderPath
@@ -304,7 +295,6 @@ export class ExportService {
 					});
 			}
 
-			console.debug("E3");
 			// Build export message
 			const messageBuilder = new ExportMessageBuilder(
 				EXPORT_MESSAGES.SUCCESS_BASE
@@ -321,7 +311,6 @@ export class ExportService {
 				messageBuilder
 			);
 
-			console.debug("E4");
 			// 2. Handle media files
 			await this.fileManager.handleMediaFilesVault(
 				parsedContents.media_files,
@@ -330,7 +319,6 @@ export class ExportService {
 				settings.replace_existing_files
 			);
 
-			console.debug("E5");
 			// 3. Handle supporting files (can override template defaults)
 			const bibFilePath = this.resolveBibPath(
 				parsedContents.yaml,
@@ -344,43 +332,33 @@ export class ExportService {
 				bibFilePath
 			);
 
-			console.debug("E6");
 			// 4. Check if output file exists and handle accordingly
 			let outputFile = this.app.vault.getFileByPath(
 				normalizePath(exportPaths.outputFilePath)
 			);
-			console.debug("E6-1");
 			if (!outputFile) {
-				console.debug("E6-2-1");
 				outputFile = await this.app.vault.create(
 					exportPaths.outputFilePath,
 					""
 				);
-				console.debug("E6-2-2");
 			} else if (settings.replace_existing_files) {
 				// Overwrite existing file
-				console.debug("E6-3-1");
 				await this.app.vault.delete(outputFile);
 				outputFile = await this.app.vault.create(
 					exportPaths.outputFilePath,
 					""
 				);
-				console.debug("E6-3-2");
 			} else {
 				// Keep existing file, skip writing
 				new Notice(
 					`Output file already exists and replace_existing_files is disabled. Skipping: ${exportPaths.outputFilePath}`
 				);
-				console.debug("E6-4");
 				return {
 					success: true,
 					message: `Export skipped - file exists: ${exportPaths.outputFilePath}`,
 					outputPath: exportPaths.outputFilePath,
 				};
 			}
-			// ++++++++++++++++++
-			console.debug("E7");
-
 			// 5. Write the main output file (mainmd.tex) last
 			const templateFilePath = this.resolveTemplatePath(
 				parsedContents.yaml,
@@ -392,7 +370,6 @@ export class ExportService {
 				settings,
 				templateFilePath
 			);
-			console.debug("E8");
 
 			// 6. Execute post-conversion command if specified (convert vault path to absolute)
 			const vaultAdapter = this.app.vault.adapter as any;
@@ -674,12 +651,12 @@ export class ExportService {
 
 		try {
 			// Replace the placeholder with the actual output file path
-			console.log(`Original command: ${command}`);
-			console.log(`Output file path: ${outputFilePath}`);
+			// console.log(`Original command: ${command}`);
+			// console.log(`Output file path: ${outputFilePath}`);
 
 			const finalCommand = command.replace(/\$filepath/g, outputFilePath);
 
-			console.log(`Final command after replacement: ${finalCommand}`);
+			// console.log(`Final command after replacement: ${finalCommand}`);
 
 			// Import required modules for command execution
 			const { exec } = require("child_process");
@@ -701,7 +678,7 @@ export class ExportService {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
 			console.error("Post-conversion command failed:", error);
-			console.error("Command was:", command);
+			// console.error("Command was:", command);
 			console.error("Output file path was:", outputFilePath);
 			new Notice(`Post-conversion command failed: ${errorMessage}`, 8000);
 		}

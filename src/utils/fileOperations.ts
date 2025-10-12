@@ -287,10 +287,10 @@ export class FileOperations {
 					if (existingFile) {
 						// Always overwrite - delete first
 						await vault.delete(existingFile);
-						console.log(`Deleted existing file: ${destItemPath}`);
+						// console.log(`Deleted existing file: ${destItemPath}`);
 					}
 					await vault.copy(item, destItemPath);
-					console.log(`Copied file: ${item.path} -> ${destItemPath}`);
+					// console.log(`Copied file: ${item.path} -> ${destItemPath}`);
 				} catch (copyError) {
 					console.error(
 						`Failed to copy file ${item.path} to ${destItemPath}:`,

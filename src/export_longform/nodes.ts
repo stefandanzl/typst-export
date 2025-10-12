@@ -4,6 +4,7 @@ import {
 	node,
 	ExportPluginSettings,
 	unroll_array,
+	register_label,
 } from "./interfaces";
 import { Notice, TFile } from "obsidian";
 import { metadata_for_unroll } from "./interfaces";
@@ -104,6 +105,8 @@ export class EmbedWikilink implements node {
 				// Use custom label if provided, otherwise no label
 				if (this.custom_label) {
 					p.label = format_label(this.custom_label);
+					// Register label for duplicate detection
+					register_label(data, p.label, "Plot/Image");
 				} else {
 					p.label = undefined;
 				}
@@ -339,10 +342,6 @@ export class Table implements node {
 		const fullTable = match[1].trim(); // full table markdown text
 		const afterLine = (match[2] || "").trim(); // possible caption/label line
 
-		console.log("📋 Table regex matched:");
-		console.log("  Full table:", JSON.stringify(fullTable));
-		console.log("  After line:", JSON.stringify(afterLine));
-
 		// Split the table into lines
 		const lines = fullTable.split(/\r?\n/);
 		if (lines.length < 2) throw new Error("Invalid markdown table format.");
@@ -397,6 +396,12 @@ export class Table implements node {
 
 	async unroll(data: metadata_for_unroll): Promise<node[]> {
 		this.file_of_origin = data.current_file;
+
+		// Register label if it exists
+		if (this.label) {
+			register_label(data, this.label, "Table");
+		}
+
 		return [this];
 	}
 
@@ -827,6 +832,8 @@ export class MarkdownImage implements node {
 		// Use custom label if provided, otherwise no label
 		if (this.custom_label) {
 			this.label = format_label(this.custom_label);
+			// Register label for duplicate detection
+			register_label(data, this.label, "MarkdownImage");
 		} else {
 			this.label = undefined;
 		}
@@ -961,6 +968,7 @@ export class UnrolledWikilink implements node {
 			header_stack: [...unroll_data.header_stack],
 			media_files: [...unroll_data.media_files],
 			bib_keys: [...unroll_data.bib_keys],
+			labels: unroll_data.labels, // Share the same label set
 		};
 		this.address = address;
 		this.attribute = attribute;
@@ -1157,73 +1165,6 @@ export class UnrolledWikilink implements node {
 	}
 	async unroll(): Promise<node[]> {
 		return [this];
-	}
-}
-
-export class PandocCitation {
-	id: string;
-	type: string | undefined;
-	result: string | undefined;
-	static get_regexp(): RegExp {
-		return /(?:(?:@([^,.;\[\] ]+))|(?:\[(-)?@([^,;.\[\]\- ]+)(?:, ?([^\]\[]*))??\]))(?:\[([^\]@]*)\])?/g;
-	}
-	constructor(id: string, type?: string, suffix?: string) {
-		this.id = id;
-		this.type = type;
-		this.result = suffix;
-	}
-	static build_from_match(
-		args: RegExpMatchArray,
-		settings: ExportPluginSettings
-	): PandocCitation {
-		let bibkey = undefined;
-		let enclosed_in_brackets: boolean;
-		if (args[1] != undefined) {
-			bibkey = args[1];
-			enclosed_in_brackets = false;
-		} else if (args[3] != undefined) {
-			bibkey = args[3];
-			enclosed_in_brackets = true;
-		} else {
-			throw Error("Unexpected regex behaviour; no bibkey found");
-		}
-		let suffix = undefined;
-		if (args[4] !== undefined) {
-			suffix = args[4];
-		} else if (args[5] !== undefined) {
-			suffix = args[5];
-		}
-		const supressed = args[2] !== undefined;
-		let citation_type: string;
-		if (supressed) {
-			citation_type = "year"; // [-@smith2021] → \citeyear
-		} else if (enclosed_in_brackets) {
-			citation_type = "parenthesis"; // [@smith2021] or [@smith2021, p. 14] → \parencite
-		} else {
-			citation_type = "txt"; // @smith2021 or @smith2021 [p. 14] → \textcite
-		}
-		if (suffix == "std" || suffix == "txt") {
-			citation_type = suffix;
-			suffix = undefined;
-		}
-		return new Citation(bibkey, citation_type, suffix);
-	}
-	async unroll(): Promise<node[]> {
-		throw Error("Should not be unrolled.");
-	}
-	async latex(
-		buffer: Buffer,
-		buffer_offset: number,
-		settings: ExportPluginSettings
-	): Promise<number> {
-		throw Error("Latex on this PandocCitation should not be called.");
-	}
-	async typst(
-		buffer: Buffer,
-		buffer_offset: number,
-		settings: ExportPluginSettings
-	): Promise<number> {
-		throw Error("Typst on this PandocCitation should not be called.");
 	}
 }
 
@@ -1535,74 +1476,5 @@ export class AliasCitation implements node {
 		}
 
 		return buffer_offset + buffer.write(citestring, buffer_offset);
-	}
-}
-
-export class PandocMultiCitation implements node {
-	ids: string[];
-	type: string;
-	static get_regexp(): RegExp {
-		return /(?<!\[)([\[])?@([a-zA-Z0-9\-_]+);[ \t]*(?:@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?(?:;[ \t]@([a-zA-Z0-9\-_]+))?\]?/g;
-	}
-	static build_from_match(args: RegExpMatchArray): PandocMultiCitation {
-		return new PandocMultiCitation(args);
-	}
-	constructor(args: string[]) {
-		this.ids = [];
-		if (args[1] !== undefined) {
-			this.type = "parenthesis";
-		} else {
-			this.type = "std";
-		}
-		for (const id of args.slice(2)) {
-			if (id === undefined) {
-				break;
-			}
-			this.ids.push(id);
-		}
-	}
-	async unroll(): Promise<node[]> {
-		return [this];
-	}
-	async latex(buffer: Buffer, buffer_offset: number): Promise<number> {
-		let citeword = "cite";
-		if (this.type == "parenthesis") {
-			citeword = "parencite";
-		}
-		buffer_offset += buffer.write("\\" + citeword + "{", buffer_offset);
-		for (const id of this.ids.slice(0, -1)) {
-			buffer_offset += buffer.write(id + ", ", buffer_offset);
-		}
-		buffer_offset += buffer.write(
-			this.ids[this.ids.length - 1] + "}",
-			buffer_offset
-		);
-		return buffer_offset;
-	}
-	async typst(
-		buffer: Buffer,
-		buffer_offset: number,
-		settings: ExportPluginSettings
-	): Promise<number> {
-		// Typst multi-citation support
-		if (this.type === "parenthesis") {
-			buffer_offset += buffer.write("#cite(", buffer_offset);
-			for (const id of this.ids.slice(0, -1)) {
-				buffer_offset += buffer.write("<" + id + ">, ", buffer_offset);
-			}
-			buffer_offset += buffer.write(
-				"<" + this.ids[this.ids.length - 1] + ">)",
-				buffer_offset
-			);
-		} else {
-			// Multiple @key citations
-			for (let i = 0; i < this.ids.length; i++) {
-				buffer_offset += buffer.write("@" + this.ids[i], buffer_offset);
-				if (i < this.ids.length - 1) {
-					buffer_offset += buffer.write(" ", buffer_offset);
-				}
-			}
-		}
-		return buffer_offset;
 	}
 }

@@ -129,7 +129,7 @@ export default class ExportPaperPlugin extends Plugin {
 			};
 
 			const result = await this.exportService.exportToVault(config);
-			console.log(result);
+			// console.log(result);
 			if (!result.success) {
 				new Notice(result.message);
 				if (result.error) {

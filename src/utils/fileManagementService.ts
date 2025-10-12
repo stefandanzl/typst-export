@@ -212,20 +212,16 @@ export class FileManagementService {
 		}
 
 		const existingBib = this.vault.getFileByPath(normalizePath(bibPath));
-		console.debug("BIB1");
 
 		if (existingBib && !replaceExisting) {
-			console.debug("BIB2");
 			messageBuilder.addBibMessage("none");
 			return;
 		}
 
 		if (!existingBib) {
-			console.debug("BIB3", existingBib);
 			await this.vault.copy(bibFile, bibPath);
 			messageBuilder.addBibMessage("copying");
 		} else {
-			console.debug("BIB4");
 			// Replace existing file
 			await this.vault.delete(existingBib);
 			await this.vault.copy(bibFile, bibPath);

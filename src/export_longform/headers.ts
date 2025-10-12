@@ -80,6 +80,7 @@ export class Header implements node {
 			header_stack: [...data.header_stack],
 			media_files: data.media_files,
 			bib_keys: data.bib_keys,
+			labels: data.labels, // Share the same label set
 		};
 		const new_title: node[] = [];
 		for (const elt of this.title) {
