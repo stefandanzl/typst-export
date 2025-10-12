@@ -1105,6 +1105,16 @@ export class UnrolledWikilink implements node {
 		) {
 			const file_contents = await this.unroll_data.read_tfile(file);
 			const [yaml] = parse_yaml_header(file_contents);
+
+			// Check for citekey field first
+			const citekey = yaml.citekey;
+			if (citekey && typeof citekey === "string") {
+				// This file has a citekey, treat wikilink as citation
+				const citation = new Citation(citekey, "std", undefined);
+				return citation.typst(buffer, buffer_offset, settings);
+			}
+
+			// Legacy support: check typst_source field for bibliography keys
 			const bib_key_match = yaml.typst_source?.match(
 				/@([a-zA-Z0-9\-_]+)|\[\[@([a-zA-Z0-9\-_]+)\]\]/
 			);
@@ -1260,7 +1270,9 @@ export class Citation implements node {
 		settings: ExportPluginSettings
 	): Promise<number> {
 		// Typst bibliography citations use @key or #cite(<key>) format
-		let citestring = "@" + this.id;
+		let citestring = "#cite(<" + this.id + ">)"; //"@" + this.id;
+
+		console.log(this.type, this.id);
 
 		// Handle different citation types with Typst cite function
 		if (this.type === "parenthesis") {
@@ -1403,9 +1415,9 @@ export class AliasCitation implements node {
 			)
 		) {
 			// Invalid type, default to textcite
-			this.type = "txt";
+			this.type = "std"; //dont use txt
 		} else {
-			this.type = type || "txt"; // Default to textcite for alias citations
+			this.type = "std"; //type || "std"; // Default to textcite for alias citations
 		}
 		this.id = id;
 		this.result = suffix;
@@ -1452,7 +1464,9 @@ export class AliasCitation implements node {
 		settings: ExportPluginSettings
 	): Promise<number> {
 		// Typst bibliography citations use @key format
-		let citestring = "@" + this.id;
+		let citestring = "#cite(<" + this.id + ">)"; //"@" + this.id;
+
+		console.log(this.type, this.id);
 
 		// Handle different citation types with Typst cite function
 		if (this.type === "parenthesis") {
