@@ -1,4 +1,4 @@
-import type { TFile } from "obsidian";
+import { TFile, Notice } from "obsidian";
 import { Header } from "./headers";
 
 export interface node {
@@ -193,6 +193,7 @@ export function register_label(
 			`In file: ${data.current_file.path}\n` +
 			`Labels must be unique for cross-referencing to work correctly.`;
 		console.error(warning);
+		new Notice(warning, 8000);
 		// Don't use notice_and_warn here to avoid circular dependency
 		return false;
 	}
