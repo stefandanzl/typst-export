@@ -19,9 +19,6 @@ import { SourceImportModal, SourceData } from "./utils/sourceManager";
 import { SourceService } from "./utils/sourceService";
 import { ExportPluginSettings, DEFAULT_SETTINGS } from "./export_longform";
 
-// Import polyfills for citation-js browser compatibility
-import "./polyfills";
-
 // Use require for Electron compatibility in Obsidian
 const { remote } = require("electron");
 
