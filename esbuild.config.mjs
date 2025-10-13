@@ -38,6 +38,106 @@ const context = await esbuild.context({
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
 	outfile: "main.js",
+	// Add Node.js polyfills for browser compatibility
+	define: {
+		'global': 'globalThis',
+		'process.env.NODE_ENV': '"development"',
+	},
+	// Platform specific settings for citation-js compatibility
+	platform: 'browser',
+	mainFields: ['browser', 'module', 'main'],
+	plugins: [
+		// Custom plugin to handle buffer module
+		{
+			name: 'node-polyfills',
+			setup(build) {
+				// Handle buffer/ require
+				build.onResolve({ filter: /^buffer\/$/ }, (args) => {
+					return { path: 'buffer', namespace: 'buffer' };
+				});
+
+				build.onLoad({ filter: /^buffer$/, namespace: 'buffer' }, () => {
+					return {
+						contents: `
+							// Basic Buffer polyfill
+							const Buffer = function (data, encoding) {
+								if (typeof data === 'string') {
+									return Buffer.from(data, encoding);
+								}
+								return new Uint8Array(data);
+							};
+							Buffer.from = function (data, encoding) {
+								if (typeof data === 'string') {
+									const enc = encoding || 'utf8';
+									const encoder = new TextEncoder();
+									return encoder.encode(data);
+								}
+								return new Uint8Array(data);
+							};
+							Buffer.alloc = function (size, fill, encoding) {
+								const buf = new Uint8Array(size);
+								if (fill !== undefined) {
+									for (let i = 0; i < size; i++) {
+										buf[i] = fill;
+									}
+								}
+								return buf;
+							};
+							Buffer.allocUnsafe = function (size) {
+								return new Uint8Array(size);
+							};
+							Buffer.allocUnsafeSlow = function (size) {
+								return new Uint8Array(size);
+							};
+							Buffer.byteLength = function (string, encoding) {
+								const encoder = new TextEncoder();
+								return encoder.encode(string).byteLength;
+							};
+							Buffer.isBuffer = function (obj) {
+								return obj instanceof Uint8Array;
+							};
+							Buffer.isEncoding = function (encoding) {
+								return ['utf8', 'utf-8', 'ascii', 'base64', 'hex'].includes(encoding.toLowerCase());
+							};
+							Buffer.concat = function (list, totalLength) {
+								if (list.length === 0) return new Uint8Array(0);
+								if (list.length === 1) return list[0];
+								const total = totalLength || list.reduce((sum, buf) => sum + buf.length, 0);
+								const result = new Uint8Array(total);
+								let offset = 0;
+								for (const buf of list) {
+									result.set(buf, offset);
+									offset += buf.length;
+								}
+								return result;
+							};
+
+							module.exports = Buffer;
+							exports.Buffer = Buffer;
+							exports.INSPECT_MAX_BYTES = 50;
+							exports.kMaxLength = 2147483647;
+							exports.SlowBuffer = Buffer;
+							exports.isBuffer = Buffer.isBuffer;
+							exports.compare = function (a, b) {
+								if (a.length !== b.length) return a.length - b.length;
+								for (let i = 0; i < a.length; i++) {
+									if (a[i] !== b[i]) return a[i] - b[i];
+								}
+								return 0;
+							};
+							exports.isEncoding = Buffer.isEncoding;
+							exports.concat = Buffer.concat;
+							exports.byteLength = Buffer.byteLength;
+							exports.isUtf8 = function (encoding) {
+								return encoding === 'utf8' || encoding === 'utf-8';
+							};
+						`,
+						loader: 'js',
+					};
+				});
+			},
+		},
+	],
 });
 
 if (prod) {

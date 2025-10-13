@@ -28,6 +28,8 @@ export interface ExportPluginSettings {
 	typst_post_command: string;
 	// File replacement behavior
 	replace_existing_files: boolean;
+	// Source management
+	sources_folder: string;
 }
 
 export const DEFAULT_SETTINGS: ExportPluginSettings = {
@@ -45,6 +47,8 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	typst_post_command: "typst compile $filepath",
 	// File replacement behavior
 	replace_existing_files: true,
+	// Source management
+	sources_folder: "Sources",
 };
 
 export const DEFAULT_TYPST_TEMPLATE = `

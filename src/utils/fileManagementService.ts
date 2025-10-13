@@ -437,4 +437,66 @@ export class FileManagementService {
 			}
 		}
 	}
+
+	/**
+	 * Writes BibTeX content to external file
+	 */
+	async writeBibContentExternal(
+		bibtexContent: string,
+		bibPath: string,
+		messageBuilder: ExportMessageBuilder,
+		replaceExisting: boolean = true
+	): Promise<void> {
+		if (!bibtexContent || bibtexContent.trim() === "") {
+			messageBuilder.addBibMessage("not_found");
+			return;
+		}
+
+		const bibExists = await FileOperations.fileExists(
+			this.vaultAdapter,
+			bibPath
+		);
+
+		if (bibExists && !replaceExisting) {
+			messageBuilder.addBibMessage("none");
+			return;
+		}
+
+		await FileOperations.writeFile(
+			this.vaultAdapter,
+			bibPath,
+			bibtexContent
+		);
+		messageBuilder.addBibMessage("copying"); // Use 'copying' since 'overwriting' is not available
+	}
+
+	/**
+	 * Writes BibTeX content to vault file
+	 */
+	async writeBibContentVault(
+		bibtexContent: string,
+		bibPath: string,
+		messageBuilder: ExportMessageBuilder,
+		replaceExisting: boolean = true
+	): Promise<void> {
+		if (!bibtexContent || bibtexContent.trim() === "") {
+			messageBuilder.addBibMessage("not_found");
+			return;
+		}
+
+		const existingBib = this.vault.getFileByPath(normalizePath(bibPath));
+
+		if (existingBib && !replaceExisting) {
+			messageBuilder.addBibMessage("none");
+			return;
+		}
+
+		if (existingBib) {
+			await this.vault.delete(existingBib);
+			messageBuilder.addBibMessage("copying"); // Use 'copying' since 'overwriting' is not available
+		} else {
+			messageBuilder.addBibMessage("copying"); // Use 'copying' since 'creating' is not available
+		}
+		await this.vault.create(bibPath, bibtexContent);
+	}
 }

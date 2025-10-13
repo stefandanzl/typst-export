@@ -121,7 +121,24 @@ export class TypstExportSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// 4. Bibliography file
+		// 4. Sources folder
+		new Setting(containerEl)
+			.setName("Sources folder")
+			.setDesc(
+				"Default vault relative path for storing source markdown files. Example: 'Sources' or 'References/Sources'. Can be overridden with frontmatter key 'typst_bib'."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("Sources")
+					.setValue(this.plugin.settings.sources_folder)
+					.onChange(async (value) => {
+						this.plugin.settings.sources_folder =
+							value.trim() === "" ? "Sources" : normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// 5. Bibliography file
 		new Setting(containerEl)
 			.setName("Bibliography file")
 			.setDesc(

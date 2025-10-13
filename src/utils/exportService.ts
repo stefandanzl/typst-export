@@ -12,18 +12,21 @@ import {
 } from "../export_longform";
 import { DEFAULT_TYPST_TEMPLATE } from "../export_longform/interfaces";
 import { joinNormPath } from ".";
+import { SourceService } from "./sourceService";
 
 /**
  * Service for handling export operations
  */
 export class ExportService {
 	private fileManager: FileManagementService;
+	private sourceService: SourceService;
 
 	constructor(private app: App) {
 		this.fileManager = new FileManagementService(
 			this.app.vault,
 			this.app.vault.adapter as FileSystemAdapter
 		);
+		this.sourceService = new SourceService(this.app);
 	}
 
 	/**
@@ -100,46 +103,78 @@ export class ExportService {
 
 	/**
 	 * Resolve bibliography file path from frontmatter or settings
+	 * Now handles both traditional .bib files and sources folder for BibTeX generation
 	 */
-	private resolveBibPath(
+	private async resolveBibPath(
 		frontmatter: { [key: string]: string },
-		settings: ExportPluginSettings
-	): string {
-		// Check frontmatter first
+		settings: ExportPluginSettings,
+		activeFile?: TFile
+	): Promise<{ path: string; needsGeneration: boolean }> {
+		// Check if typst_bib is set as a sources folder (new behavior)
+		if ("typst_bib" in frontmatter) {
+			const sourcesPath = frontmatter.typst_bib;
+
+			if (sourcesPath && sourcesPath !== "" && sourcesPath !== null) {
+				// This is a sources folder - generate BibTeX from sources
+				return {
+					path: normalizePath(sourcesPath),
+					needsGeneration: true
+				};
+			}
+		}
+
+		// Check traditional .bib file settings (legacy behavior)
 		if ("typst_bib" in frontmatter) {
 			const path = frontmatter.typst_bib;
 
-			if (path === "" || path === null || path === undefined) {
-				new Notice("⚠️ Bibliography file path in frontmatter is empty");
-				return "";
+			if (path && path !== "" && path !== null) {
+				const normalizedPath = normalizePath(path);
+				const file = this.app.vault.getFileByPath(normalizedPath);
+				if (file) {
+					return {
+						path: normalizedPath,
+						needsGeneration: false
+					};
+				} else {
+					new Notice(
+						`⚠️ Bibliography file not found: ${normalizedPath} (from frontmatter)`
+					);
+				}
 			}
-
-			const normalizedPath = normalizePath(path);
-			const file = this.app.vault.getFileByPath(normalizedPath);
-			if (!file) {
-				new Notice(
-					`⚠️ Bibliography file not found: ${normalizedPath} (from frontmatter)`
-				);
-				return "";
-			}
-
-			return normalizedPath;
 		}
 
-		// Fall back to settings
+		// Fall back to settings for traditional .bib file
 		if (settings.bib_file && settings.bib_file !== "") {
 			const file = this.app.vault.getFileByPath(settings.bib_file);
-			if (!file) {
+			if (file) {
+				return {
+					path: settings.bib_file,
+					needsGeneration: false
+				};
+			} else {
 				new Notice(
 					`⚠️ Bibliography file not found: ${settings.bib_file} (from settings)`
 				);
-				return "";
 			}
-			return settings.bib_file;
 		}
 
-		// No bib file specified
-		return "";
+		// Check if we should generate from default sources folder
+		if (settings.sources_folder && settings.sources_folder !== "") {
+			const sourcesFolder = activeFile
+				? await this.sourceService.getSourcesFolder(activeFile, settings.sources_folder)
+				: settings.sources_folder;
+
+			return {
+				path: sourcesFolder,
+				needsGeneration: true
+			};
+		}
+
+		// No bibliography specified
+		return {
+			path: "",
+			needsGeneration: false
+		};
 	}
 
 	/**
@@ -203,16 +238,17 @@ export class ExportService {
 			);
 
 			// 3. Handle supporting files (can override template defaults)
-			const bibFilePath = this.resolveBibPath(
+			const bibPathInfo = await this.resolveBibPath(
 				parsedContents.yaml,
-				settings
+				settings,
+				activeFile
 			);
 			await this.handleSupportingFilesExternal(
 				parsedContents,
 				exportPaths,
 				settings,
 				messageBuilder,
-				bibFilePath
+				bibPathInfo
 			);
 
 			// 4. Write the main output file (mainmd.tex) last
@@ -320,16 +356,17 @@ export class ExportService {
 			);
 
 			// 3. Handle supporting files (can override template defaults)
-			const bibFilePath = this.resolveBibPath(
+			const bibPathInfo = await this.resolveBibPath(
 				parsedContents.yaml,
-				settings
+				settings,
+				activeFile
 			);
 			await this.handleSupportingFilesVault(
 				parsedContents,
 				exportPaths,
 				settings,
 				messageBuilder,
-				bibFilePath
+				bibPathInfo
 			);
 
 			// 4. Check if output file exists and handle accordingly
@@ -445,7 +482,7 @@ export class ExportService {
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
 		messageBuilder: ExportMessageBuilder,
-		bibFilePath: string
+		bibPathInfo: { path: string; needsGeneration: boolean }
 	): Promise<void> {
 		// Handle header file
 		await this.fileManager.handleHeaderFileExternal(
@@ -456,15 +493,27 @@ export class ExportService {
 		);
 
 		// Handle bibliography file
-		const bibFile = bibFilePath
-			? this.app.vault.getFileByPath(bibFilePath)
-			: undefined;
-		await this.fileManager.handleBibFileExternal(
-			bibFile || undefined,
-			exportPaths.bibPath,
-			messageBuilder,
-			settings.replace_existing_files
-		);
+		if (bibPathInfo.needsGeneration) {
+			// Generate BibTeX from sources folder
+			const bibtexContent = await this.sourceService.generateBibTeXFromSources(bibPathInfo.path);
+			await this.fileManager.writeBibContentExternal(
+				bibtexContent,
+				exportPaths.bibPath,
+				messageBuilder,
+				settings.replace_existing_files
+			);
+		} else {
+			// Use traditional .bib file
+			const bibFile = bibPathInfo.path
+				? this.app.vault.getFileByPath(bibPathInfo.path)
+				: undefined;
+			await this.fileManager.handleBibFileExternal(
+				bibFile || undefined,
+				exportPaths.bibPath,
+				messageBuilder,
+				settings.replace_existing_files
+			);
+		}
 	}
 
 	/**
@@ -475,7 +524,7 @@ export class ExportService {
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
 		messageBuilder: ExportMessageBuilder,
-		bibFilePath: string
+		bibPathInfo: { path: string; needsGeneration: boolean }
 	): Promise<void> {
 		// Handle header file
 		await this.fileManager.handleHeaderFileVault(
@@ -486,15 +535,27 @@ export class ExportService {
 		);
 
 		// Handle bibliography file
-		const bibFile = bibFilePath
-			? this.app.vault.getFileByPath(bibFilePath)
-			: undefined;
-		await this.fileManager.handleBibFileVault(
-			bibFile || undefined,
-			exportPaths.bibPath,
-			messageBuilder,
-			settings.replace_existing_files
-		);
+		if (bibPathInfo.needsGeneration) {
+			// Generate BibTeX from sources folder
+			const bibtexContent = await this.sourceService.generateBibTeXFromSources(bibPathInfo.path);
+			await this.fileManager.writeBibContentVault(
+				bibtexContent,
+				exportPaths.bibPath,
+				messageBuilder,
+				settings.replace_existing_files
+			);
+		} else {
+			// Use traditional .bib file
+			const bibFile = bibPathInfo.path
+				? this.app.vault.getFileByPath(bibPathInfo.path)
+				: undefined;
+			await this.fileManager.handleBibFileVault(
+				bibFile || undefined,
+				exportPaths.bibPath,
+				messageBuilder,
+				settings.replace_existing_files
+			);
+		}
 	}
 
 	/**
