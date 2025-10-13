@@ -26,7 +26,10 @@ export class ExportService {
 			this.app.vault,
 			this.app.vault.adapter as FileSystemAdapter
 		);
-		this.bibliographyExporter = new BibliographyExporter(this.app, this.settings);
+		this.bibliographyExporter = new BibliographyExporter(
+			this.app,
+			this.settings
+		);
 	}
 
 	/**
@@ -117,13 +120,13 @@ export class ExportService {
 				const normalizedPath = normalizePath(typstBib);
 
 				// Auto-detect by extension
-				if (typstBib.endsWith('.bib')) {
+				if (typstBib.endsWith(".bib")) {
 					// Legacy .bib file mode
 					const file = this.app.vault.getFileByPath(normalizedPath);
 					if (file) {
 						return {
 							path: normalizedPath,
-							needsGeneration: false
+							needsGeneration: false,
 						};
 					} else {
 						new Notice(
@@ -134,7 +137,7 @@ export class ExportService {
 					// Directory mode - generate BibTeX from sources
 					return {
 						path: normalizedPath,
-						needsGeneration: true
+						needsGeneration: true,
 					};
 				}
 			}
@@ -146,7 +149,7 @@ export class ExportService {
 			if (file) {
 				return {
 					path: settings.bib_file,
-					needsGeneration: false
+					needsGeneration: false,
 				};
 			} else {
 				new Notice(
@@ -159,14 +162,14 @@ export class ExportService {
 		if (settings.sources_folder && settings.sources_folder !== "") {
 			return {
 				path: settings.sources_folder,
-				needsGeneration: true
+				needsGeneration: true,
 			};
 		}
 
 		// No bibliography specified
 		return {
 			path: "",
-			needsGeneration: false
+			needsGeneration: false,
 		};
 	}
 
@@ -486,11 +489,15 @@ export class ExportService {
 		// Handle bibliography file
 		if (bibPathInfo.needsGeneration) {
 			// Generate BibTeX from sources folder
-			const bibConfig = { mode: 'directory' as const, path: bibPathInfo.path };
-			const bibtexPath = await this.bibliographyExporter.exportBibliography(
-				bibConfig,
-				exportPaths.outputFolderPath
-			);
+			const bibConfig = {
+				mode: "directory" as const,
+				path: bibPathInfo.path,
+			};
+			const bibtexPath =
+				await this.bibliographyExporter.exportBibliography(
+					bibConfig,
+					exportPaths.outputFolderPath
+				);
 			console.log(`Generated bibliography: ${bibtexPath}`);
 		} else {
 			// Use traditional .bib file
@@ -527,11 +534,15 @@ export class ExportService {
 		// Handle bibliography file
 		if (bibPathInfo.needsGeneration) {
 			// Generate BibTeX from sources folder
-			const bibConfig = { mode: 'directory' as const, path: bibPathInfo.path };
-			const bibtexPath = await this.bibliographyExporter.exportBibliography(
-				bibConfig,
-				exportPaths.outputFolderPath
-			);
+			const bibConfig = {
+				mode: "directory" as const,
+				path: bibPathInfo.path,
+			};
+			const bibtexPath =
+				await this.bibliographyExporter.exportBibliography(
+					bibConfig,
+					exportPaths.outputFolderPath
+				);
 			console.log(`Generated bibliography: ${bibtexPath}`);
 		} else {
 			// Use traditional .bib file
@@ -694,6 +705,8 @@ export class ExportService {
 		settings: ExportPluginSettings
 	): Promise<void> {
 		const command = settings.typst_post_command;
+		console.log(command);
+		console.log(outputFilePath);
 
 		if (!command || command.trim() === "") {
 			return; // No command specified
@@ -706,13 +719,17 @@ export class ExportService {
 
 			const finalCommand = command.replace(/\$filepath/g, outputFilePath);
 
-			// console.log(`Final command after replacement: ${finalCommand}`);
+			console.log(`Final command after replacement: ${finalCommand}`);
 
 			// Import required modules for command execution
 			const { exec } = require("child_process");
+			console.log("A1");
 			const util = require("util");
+			console.log("2");
 			const execPromise = util.promisify(exec);
+			console.log("A3");
 
+			console.log("finalCommand:", finalCommand);
 			// Execute the command
 			const { stdout, stderr } = await execPromise(finalCommand);
 
