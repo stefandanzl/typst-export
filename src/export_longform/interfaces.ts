@@ -30,6 +30,9 @@ export interface ExportPluginSettings {
 	replace_existing_files: boolean;
 	// Source management
 	sources_folder: string;
+	// Bibliography settings
+	bibliographyFilename: string;
+	autoGenerateCitekeys: boolean;
 }
 
 export const DEFAULT_SETTINGS: ExportPluginSettings = {
@@ -49,6 +52,9 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	replace_existing_files: true,
 	// Source management
 	sources_folder: "Sources",
+	// Bibliography settings
+	bibliographyFilename: "bibliography.bib",
+	autoGenerateCitekeys: true,
 };
 
 export const DEFAULT_TYPST_TEMPLATE = `

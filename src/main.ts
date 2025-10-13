@@ -18,6 +18,7 @@ import {
 import { SourceImportModal, SourceData } from "./utils/sourceManager";
 import { SourceService } from "./utils/sourceService";
 import { ExportPluginSettings, DEFAULT_SETTINGS } from "./export_longform";
+import { getBibliographyCommands } from "./utils/bibliographyCommands";
 
 // Use require for Electron compatibility in Obsidian
 const { remote } = require("electron");
@@ -43,7 +44,7 @@ export default class ExportPaperPlugin extends Plugin {
 		// Note: CSS can be loaded later if needed - not critical for functionality
 
 		// Initialize services
-		this.exportService = new ExportService(this.app);
+		this.exportService = new ExportService(this.app, this.settings);
 		this.sourceService = new SourceService(this.app);
 
 		// Register commands
@@ -140,6 +141,12 @@ export default class ExportPaperPlugin extends Plugin {
 				const selection = editor.getSelection();
 				this.handleSelectionExport(activeFile, selection);
 			},
+		});
+
+		// Add bibliography commands
+		const bibliographyCommands = getBibliographyCommands(this.app);
+		bibliographyCommands.forEach(command => {
+			this.addCommand(command);
 		});
 	}
 

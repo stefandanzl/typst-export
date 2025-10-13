@@ -12,21 +12,21 @@ import {
 } from "../export_longform";
 import { DEFAULT_TYPST_TEMPLATE } from "../export_longform/interfaces";
 import { joinNormPath } from ".";
-import { SourceService } from "./sourceService";
+import { BibliographyExporter } from "./exportbib";
 
 /**
  * Service for handling export operations
  */
 export class ExportService {
 	private fileManager: FileManagementService;
-	private sourceService: SourceService;
+	private bibliographyExporter: BibliographyExporter;
 
-	constructor(private app: App) {
+	constructor(private app: App, private settings: ExportPluginSettings) {
 		this.fileManager = new FileManagementService(
 			this.app.vault,
 			this.app.vault.adapter as FileSystemAdapter
 		);
-		this.sourceService = new SourceService(this.app);
+		this.bibliographyExporter = new BibliographyExporter(this.app, this.settings);
 	}
 
 	/**
@@ -107,38 +107,35 @@ export class ExportService {
 	 */
 	private async resolveBibPath(
 		frontmatter: { [key: string]: string },
-		settings: ExportPluginSettings,
-		activeFile?: TFile
+		settings: ExportPluginSettings
 	): Promise<{ path: string; needsGeneration: boolean }> {
-		// Check if typst_bib is set as a sources folder (new behavior)
+		// Check typst_bib setting with auto-detection by extension
 		if ("typst_bib" in frontmatter) {
-			const sourcesPath = frontmatter.typst_bib;
+			const typstBib = frontmatter.typst_bib;
 
-			if (sourcesPath && sourcesPath !== "" && sourcesPath !== null) {
-				// This is a sources folder - generate BibTeX from sources
-				return {
-					path: normalizePath(sourcesPath),
-					needsGeneration: true
-				};
-			}
-		}
+			if (typstBib && typstBib !== "" && typstBib !== null) {
+				const normalizedPath = normalizePath(typstBib);
 
-		// Check traditional .bib file settings (legacy behavior)
-		if ("typst_bib" in frontmatter) {
-			const path = frontmatter.typst_bib;
-
-			if (path && path !== "" && path !== null) {
-				const normalizedPath = normalizePath(path);
-				const file = this.app.vault.getFileByPath(normalizedPath);
-				if (file) {
+				// Auto-detect by extension
+				if (typstBib.endsWith('.bib')) {
+					// Legacy .bib file mode
+					const file = this.app.vault.getFileByPath(normalizedPath);
+					if (file) {
+						return {
+							path: normalizedPath,
+							needsGeneration: false
+						};
+					} else {
+						new Notice(
+							`⚠️ Bibliography file not found: ${normalizedPath} (from frontmatter)`
+						);
+					}
+				} else {
+					// Directory mode - generate BibTeX from sources
 					return {
 						path: normalizedPath,
-						needsGeneration: false
+						needsGeneration: true
 					};
-				} else {
-					new Notice(
-						`⚠️ Bibliography file not found: ${normalizedPath} (from frontmatter)`
-					);
 				}
 			}
 		}
@@ -160,12 +157,8 @@ export class ExportService {
 
 		// Check if we should generate from default sources folder
 		if (settings.sources_folder && settings.sources_folder !== "") {
-			const sourcesFolder = activeFile
-				? await this.sourceService.getSourcesFolder(activeFile, settings.sources_folder)
-				: settings.sources_folder;
-
 			return {
-				path: sourcesFolder,
+				path: settings.sources_folder,
 				needsGeneration: true
 			};
 		}
@@ -240,8 +233,7 @@ export class ExportService {
 			// 3. Handle supporting files (can override template defaults)
 			const bibPathInfo = await this.resolveBibPath(
 				parsedContents.yaml,
-				settings,
-				activeFile
+				settings
 			);
 			await this.handleSupportingFilesExternal(
 				parsedContents,
@@ -358,8 +350,7 @@ export class ExportService {
 			// 3. Handle supporting files (can override template defaults)
 			const bibPathInfo = await this.resolveBibPath(
 				parsedContents.yaml,
-				settings,
-				activeFile
+				settings
 			);
 			await this.handleSupportingFilesVault(
 				parsedContents,
@@ -495,13 +486,12 @@ export class ExportService {
 		// Handle bibliography file
 		if (bibPathInfo.needsGeneration) {
 			// Generate BibTeX from sources folder
-			const bibtexContent = await this.sourceService.generateBibTeXFromSources(bibPathInfo.path);
-			await this.fileManager.writeBibContentExternal(
-				bibtexContent,
-				exportPaths.bibPath,
-				messageBuilder,
-				settings.replace_existing_files
+			const bibConfig = { mode: 'directory' as const, path: bibPathInfo.path };
+			const bibtexPath = await this.bibliographyExporter.exportBibliography(
+				bibConfig,
+				exportPaths.outputFolderPath
 			);
+			console.log(`Generated bibliography: ${bibtexPath}`);
 		} else {
 			// Use traditional .bib file
 			const bibFile = bibPathInfo.path
@@ -537,13 +527,12 @@ export class ExportService {
 		// Handle bibliography file
 		if (bibPathInfo.needsGeneration) {
 			// Generate BibTeX from sources folder
-			const bibtexContent = await this.sourceService.generateBibTeXFromSources(bibPathInfo.path);
-			await this.fileManager.writeBibContentVault(
-				bibtexContent,
-				exportPaths.bibPath,
-				messageBuilder,
-				settings.replace_existing_files
+			const bibConfig = { mode: 'directory' as const, path: bibPathInfo.path };
+			const bibtexPath = await this.bibliographyExporter.exportBibliography(
+				bibConfig,
+				exportPaths.outputFolderPath
 			);
+			console.log(`Generated bibliography: ${bibtexPath}`);
 		} else {
 			// Use traditional .bib file
 			const bibFile = bibPathInfo.path
