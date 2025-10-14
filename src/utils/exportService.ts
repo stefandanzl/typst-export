@@ -447,7 +447,7 @@ export class ExportService {
 			);
 
 		if (result.success && result.path) {
-			console.log(`Bibliography handled: ${result.path}`);
+			// console.log(`Bibliography handled: ${result.path}`);
 		} else if (result.error) {
 			console.warn(`Bibliography generation failed: ${result.error}`);
 			// Don't fail the entire export, just continue without bibliography
@@ -481,7 +481,7 @@ export class ExportService {
 			);
 
 		if (result.success && result.path) {
-			console.log(`Bibliography handled: ${result.path}`);
+			// console.log(`Bibliography handled: ${result.path}`);
 		} else if (result.error) {
 			console.warn(`Bibliography generation failed: ${result.error}`);
 			// Don't fail the entire export, just continue without bibliography
@@ -635,7 +635,7 @@ export class ExportService {
 		settings: ExportPluginSettings
 	): Promise<void> {
 		const command = settings.typst_post_command;
-		console.log(command);
+		// console.log(command);
 		console.log(outputFilePath);
 
 		if (!command || command.trim() === "") {
@@ -649,18 +649,10 @@ export class ExportService {
 
 			const finalCommand = command.replace(/\$filepath/g, outputFilePath);
 
-			console.log(`Final command after replacement: ${finalCommand}`);
+			// console.log(`Final command after replacement: ${finalCommand}`);
 
-			// Import required modules for command execution
-			// const { exec } = require("child_process");
-			// console.log("A1");
-			// const util = require("util");
-			console.log("2");
-			// const execPromise = util.promisify(exec); // <---- this line creates error
-			const execPromise = promisify(exec); // <---- this line creates error
-			console.log("A3");
+			const execPromise = promisify(exec);
 
-			console.log("finalCommand:", finalCommand);
 			// Execute the command
 			const { stdout, stderr } = await execPromise(finalCommand);
 

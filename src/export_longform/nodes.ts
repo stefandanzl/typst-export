@@ -1272,7 +1272,7 @@ export class Citation implements node {
 		// Typst bibliography citations use @key or #cite(<key>) format
 		let citestring = "#cite(<" + this.id + ">)"; //"@" + this.id;
 
-		console.log(this.type, this.id);
+		// console.log(this.type, this.id);
 
 		// Handle different citation types with Typst cite function
 		if (this.type === "parenthesis") {
@@ -1466,7 +1466,7 @@ export class AliasCitation implements node {
 		// Typst bibliography citations use @key format
 		let citestring = "#cite(<" + this.id + ">)"; //"@" + this.id;
 
-		console.log(this.type, this.id);
+		// console.log(this.type, this.id);
 
 		// Handle different citation types with Typst cite function
 		if (this.type === "parenthesis") {

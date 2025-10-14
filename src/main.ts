@@ -64,7 +64,7 @@ export default class ExportPaperPlugin extends Plugin {
 			name: "Export current note in-vault",
 			checkCallback: (checking: boolean) => {
 				const activeFile = this.app.workspace.getActiveFile();
-				if (!(activeFile instanceof TFile)) {
+				if (!(activeFile instanceof TFile) || activeFile.extension !== "md") {
 					return false;
 				}
 
@@ -83,7 +83,7 @@ export default class ExportPaperPlugin extends Plugin {
 			name: "Export current note to external folder",
 			checkCallback: (checking: boolean) => {
 				const activeFile = this.app.workspace.getActiveFile();
-				if (!(activeFile instanceof TFile)) {
+				if (!(activeFile instanceof TFile) || activeFile.extension !== "md") {
 					return false;
 				}
 
@@ -106,12 +106,12 @@ export default class ExportPaperPlugin extends Plugin {
 				ctx: MarkdownView | MarkdownFileInfo
 			): boolean | void => {
 				if (checking) {
-					return editor.somethingSelected();
+					return editor.somethingSelected() && ctx.file?.extension === "md";
 				}
 
 				const activeFile = ctx.file;
-				if (!activeFile) {
-					new Notice(EXPORT_MESSAGES.NO_FILE);
+				if (!activeFile || activeFile.extension !== "md") {
+					new Notice("Export is only available for markdown files");
 					return;
 				}
 
