@@ -1,11 +1,6 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
-import stdLibBrowser from 'node-stdlib-browser';
-import plugin from 'node-stdlib-browser/helpers/esbuild/plugin';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
 
 const banner =
 	`/*
@@ -20,7 +15,7 @@ const context = await esbuild.context({
 	banner: {
 		js: banner,
 	},
-	entryPoints: ["src/main.ts"],
+	entryPoints: ["./src/main.ts"],
 	bundle: true,
 	external: [
 		"obsidian",
@@ -43,41 +38,6 @@ const context = await esbuild.context({
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
 	outfile: "main.js",
-	inject: [require.resolve('node-stdlib-browser/helpers/esbuild/shim')],
-	define: {
-		'global': 'globalThis',
-		'process.env.NODE_ENV': '"development"',
-		'Buffer': 'Buffer',
-	},
-	platform: "neutral",//'node',//'browser',
-	mainFields: ['browser', 'module', 'main'],
-	plugins: [
-		// Handle Node.js built-in modules with trailing slash
-		{
-			name: 'node-builtins-trailing-slash',
-			setup(build) {
-				// Only handle specific Node.js built-ins with trailing slash, but exclude node: prefix
-				build.onResolve({ filter: /^(buffer|util|assert)\/$/ }, (args) => {
-					// Skip if path starts with node:
-					// if (args.path.startsWith('node:')) {
-					// 	const moduleName = args.path
-					// 	return build.resolve(moduleName, {
-					// 		kind: args.kind,
-					// 		resolveDir: args.resolveDir,
-					// 		external: false
-					// 	});
-					// }
-					const moduleName = args.path.slice(0, -1);
-					return build.resolve(moduleName, {
-						kind: args.kind,
-						resolveDir: args.resolveDir,
-					});
-				});
-			},
-		},
-		// plugin(["buffer", "util", "assert"])
-		plugin(stdLibBrowser),
-	],
 });
 
 if (prod) {
@@ -86,5 +46,3 @@ if (prod) {
 } else {
 	await context.watch();
 }
-
-

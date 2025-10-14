@@ -58,7 +58,8 @@ Write academic papers directly in Obsidian! Export an Obsidian note to a full-fl
 ```yaml
 typst_template: path/to/template.typ
 typst_template_folder: path/to/assets
-typst_bib: path/to/bibliography.bib
+typst_bib: path/to/bibliography.bib        # Use existing .bib file
+typst_bib: sources                       # Generate from directory (requires API)
 ```
 
 ### Special Headers & Template Anchors
@@ -117,8 +118,48 @@ This plugin supports:
 
 This plugin works great with:
 
+-   **Bibliography Manager** plugin for automatic bibliography generation from source files
 -   **Zotero Integration** or **Citations** plugin for bibliography management
 -   **Extended MathJax** for LaTeX macros in both Obsidian and exports
+
+## Bibliography Integration
+
+The plugin now supports two approaches to bibliography management:
+
+### 1. Existing .bib Files (Traditional)
+Use existing BibTeX files:
+```yaml
+typst_bib: "path/to/bibliography.bib"
+```
+
+### 2. Bibliography Manager Plugin (Recommended)
+Generate bibliographies automatically from source files:
+
+```yaml
+typst_bib: "sources"  # Generate bibliography from source files
+```
+
+**Requirements for Bibliography Manager:**
+- Install the **Bibliography Manager** plugin
+- Enable API integration in Typst Export settings
+- Create source files with proper frontmatter (citekey, title, author, etc.)
+
+**Source file format:**
+```yaml
+---
+title: "Neural Networks in Practice"
+author: ["Smith, John", "Doe, Jane"]
+year: 2023
+citekey: "smith2023"
+notetype: "source"
+category: ["paper"]
+---
+```
+
+**API Settings:**
+- Toggle "Use Bibliography API" in settings
+- Check plugin availability with the "Check Availability" button
+- API status shows: available (green), unavailable (red), or unknown (gray)
 
 ## Purpose and Concept
 
@@ -153,7 +194,10 @@ Navigate to your longform note and run this command. The plugin creates a folder
 
 **Files and paths:**
 
--   **Bibliography**: Specify path in settings or override per-note with `typst_bib` frontmatter key
+-   **Bibliography**:
+    - Use existing `.bib` file: `typst_bib: path/to/bibliography.bib`
+    - Generate from directory: `typst_bib: sources` (requires Bibliography Manager plugin)
+    - Specify in settings or override per-note with `typst_bib` frontmatter key
 -   **Template**: Specify in settings or override with `typst_template` frontmatter key
 -   **Template folder**: Copy additional template files with `typst_template_folder` setting or frontmatter key
 -   Templates should use `{{body}}` anchor (and optionally `{{abstract}}`, `{{appendix}}`)
@@ -164,7 +208,8 @@ Navigate to your longform note and run this command. The plugin creates a folder
 ---
 typst_template: path/to/custom-template.typ
 typst_template_folder: path/to/template-assets
-typst_bib: path/to/custom-bibliography.bib
+typst_bib: path/to/custom-bibliography.bib    # Use existing file
+typst_bib: sources                            # Generate from directory
 ---
 ```
 

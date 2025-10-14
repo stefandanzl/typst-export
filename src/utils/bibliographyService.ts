@@ -1,4 +1,4 @@
-import { App, TFile, TFolder, Notice, FileSystemAdapter, normalizePath } from "obsidian";
+import { App, Notice, FileSystemAdapter, normalizePath } from "obsidian";
 import { ExportPluginSettings } from "../export_longform/interfaces";
 
 export interface BibliographyAPI {
@@ -59,11 +59,13 @@ export class BibliographyService {
 			const isAvailable = await this.checkBibliographyPluginAvailability();
 			if (isAvailable) {
 				return this.generateBibliographyViaAPI(typstBib, outputPath);
+			} else {
+				throw new Error(`Bibliography Manager plugin not available. Cannot generate bibliography from directory: ${typstBib}`);
 			}
 		}
 
-		// Fallback: look for .bib file in the directory
-		return this.findAndCopyBibFromDirectory(typstBib, outputPath);
+		// Directory specified but API is disabled
+		throw new Error(`Cannot generate bibliography from directory '${typstBib}' because Bibliography API is disabled. Please enable the API or specify a .bib file path.`);
 	}
 
 	/**
@@ -120,42 +122,7 @@ export class BibliographyService {
 		}
 	}
 
-	/**
-	 * Find and copy .bib file from directory (fallback)
-	 */
-	private async findAndCopyBibFromDirectory(
-		directory: string,
-		outputPath: string
-	): Promise<string | null> {
-		try {
-			const dir = this.app.vault.getAbstractFileByPath(normalizePath(directory)) as TFolder;
-			if (!dir || !dir.children) {
-				console.warn(`Directory not found: ${directory}`);
-				return null;
-			}
-
-			// Look for .bib files in the directory
-			const bibFiles = [];
-			for (const child of dir.children) {
-				if (child instanceof TFile && child.path.endsWith('.bib')) {
-					bibFiles.push(child);
-				}
-			}
-
-			if (bibFiles.length === 0) {
-				console.warn(`No .bib files found in directory: ${directory}`);
-				return null;
-			}
-
-			// Use the first .bib file found
-			const bibFile = bibFiles[0];
-			return this.copyExistingBibFile(bibFile.path, outputPath);
-		} catch (error) {
-			console.error('Failed to find bibliography in directory:', error);
-			return null;
-		}
-	}
-
+	
 	/**
 	 * Ensure directory exists
 	 */
@@ -169,7 +136,7 @@ export class BibliographyService {
 	}
 
 	/**
-	 * Handle bibliography generation with proper error handling and fallbacks
+	 * Handle bibliography generation with proper error handling
 	 */
 	async handleBibliographyGeneration(
 		typstBib: string | undefined,
@@ -184,12 +151,11 @@ export class BibliographyService {
 					if (isAvailable) {
 						const path = await this.generateBibliographyViaAPI(fallbackSourcesFolder, outputBibPath);
 						return { success: true, path };
+					} else {
+						throw new Error(`Bibliography Manager plugin not available. Cannot generate bibliography from sources folder: ${fallbackSourcesFolder}`);
 					}
-				}
-				// Fallback to look for .bib in sources folder
-				const path = await this.findAndCopyBibFromDirectory(fallbackSourcesFolder, outputBibPath);
-				if (path) {
-					return { success: true, path };
+				} else {
+					throw new Error(`Cannot generate bibliography because no typst_bib specified and Bibliography API is disabled. Please enable the API or specify a .bib file path.`);
 				}
 			}
 

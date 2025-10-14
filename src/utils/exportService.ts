@@ -13,7 +13,7 @@ import {
 import { DEFAULT_TYPST_TEMPLATE } from "../export_longform/interfaces";
 import { joinNormPath } from ".";
 import { BibliographyService } from "./bibliographyService";
-import { promisify } from "node:util";
+import { promisify } from "util";
 
 // Use require for child_process in Obsidian environment
 const { exec } = require("child_process");
@@ -439,11 +439,12 @@ export class ExportService {
 
 		// Handle bibliography using the new service
 		const typstBib = this.getTypstBibSetting(frontmatter, settings);
-		const result = await this.bibliographyService.handleBibliographyGeneration(
-			typstBib || undefined,
-			exportPaths.bibPath,
-			settings.sources_folder
-		);
+		const result =
+			await this.bibliographyService.handleBibliographyGeneration(
+				typstBib || undefined,
+				exportPaths.bibPath,
+				settings.sources_folder
+			);
 
 		if (result.success && result.path) {
 			console.log(`Bibliography handled: ${result.path}`);
@@ -472,11 +473,12 @@ export class ExportService {
 
 		// Handle bibliography using the new service
 		const typstBib = this.getTypstBibSetting(frontmatter, settings);
-		const result = await this.bibliographyService.handleBibliographyGeneration(
-			typstBib || undefined,
-			exportPaths.bibPath,
-			settings.sources_folder
-		);
+		const result =
+			await this.bibliographyService.handleBibliographyGeneration(
+				typstBib || undefined,
+				exportPaths.bibPath,
+				settings.sources_folder
+			);
 
 		if (result.success && result.path) {
 			console.log(`Bibliography handled: ${result.path}`);
