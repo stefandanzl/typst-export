@@ -155,6 +155,62 @@ export class TypstExportSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Bibliography API Settings Section
+		containerEl.createEl("h3", { text: "Bibliography API Settings" });
+
+		// Use Bibliography API toggle
+		new Setting(containerEl)
+			.setName("Use Bibliography API")
+			.setDesc(
+				"Enable to use the Bibliography Manager plugin for automatic bibliography generation from sources. Disable to only use existing .bib files."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.useBibliographyAPI)
+					.onChange(async (value) => {
+						this.plugin.settings.useBibliographyAPI = value;
+						await this.plugin.saveSettings();
+						// Refresh display to update API status
+						this.display();
+					})
+			);
+
+		// API Status display
+		const apiStatusContainer = containerEl.createDiv();
+		apiStatusContainer.createEl("p", { text: "Bibliography API Status: " });
+		const statusIndicator = apiStatusContainer.createEl("span");
+		statusIndicator.textContent = this.plugin.settings.bibliographyAPIStatus;
+
+		// Color code the status
+		if (this.plugin.settings.bibliographyAPIStatus === "available") {
+			statusIndicator.style.color = "var(--text-success)";
+		} else if (this.plugin.settings.bibliographyAPIStatus === "unavailable") {
+			statusIndicator.style.color = "var(--text-error)";
+		} else {
+			statusIndicator.style.color = "var(--text-muted)";
+		}
+
+		// Check API availability button
+		new Setting(containerEl)
+			.setName("Check Bibliography Plugin")
+			.setDesc(
+				"Check if the Bibliography Manager plugin is installed and available."
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Check Availability")
+					.onClick(async () => {
+						await this.checkBibliographyPlugin();
+					})
+			);
+
+		// API info
+		const apiInfoContainer = containerEl.createDiv();
+		apiInfoContainer.createEl("p", {
+			text: "When API is enabled, typst_bib can reference directories (e.g., 'sources') to auto-generate bibliography from source files.",
+			cls: "setting-item-description"
+		});
+
 		// 1. Output folder
 		new Setting(containerEl)
 			.setName("Output folder")
@@ -312,6 +368,32 @@ export class TypstExportSettingTab extends PluginSettingTab {
 				error instanceof Error ? error.message : String(error);
 			new Notice(`Command test failed: ${errorMessage}`);
 			console.error("Command test error:", error);
+		}
+	}
+
+	/**
+	 * Check if Bibliography Manager plugin is available
+	 */
+	private async checkBibliographyPlugin(): Promise<void> {
+		try {
+			const bibPlugin = (this.app as any).plugins.plugins['bibliography-manager'];
+
+			if (bibPlugin?.api) {
+				this.plugin.settings.bibliographyAPIStatus = "available";
+				new Notice("✅ Bibliography Manager plugin is available and API is ready", 3000);
+			} else {
+				this.plugin.settings.bibliographyAPIStatus = "unavailable";
+				new Notice("❌ Bibliography Manager plugin not found or API not available. Please install the plugin.", 5000);
+			}
+
+			await this.plugin.saveSettings();
+			this.display(); // Refresh to update status display
+		} catch (error) {
+			this.plugin.settings.bibliographyAPIStatus = "unavailable";
+			console.error("Error checking bibliography plugin:", error);
+			new Notice("Error checking bibliography plugin availability", 3000);
+			await this.plugin.saveSettings();
+			this.display();
 		}
 	}
 }

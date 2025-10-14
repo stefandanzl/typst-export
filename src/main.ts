@@ -15,10 +15,7 @@ import {
 	ExportConfig,
 	ExternalExportDialogResult,
 } from "./utils";
-import { SourceImportModal, SourceData } from "./utils/sourceManager";
-import { SourceService } from "./utils/sourceService";
 import { ExportPluginSettings, DEFAULT_SETTINGS } from "./export_longform";
-import { getBibliographyCommands } from "./utils/bibliographyCommands";
 
 // Use require for Electron compatibility in Obsidian
 const { remote } = require("electron");
@@ -36,7 +33,6 @@ interface OpenDialogReturnValue {
 export default class ExportPaperPlugin extends Plugin {
 	settings: ExportPluginSettings;
 	private exportService: ExportService;
-	private sourceService: SourceService;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -45,7 +41,6 @@ export default class ExportPaperPlugin extends Plugin {
 
 		// Initialize services
 		this.exportService = new ExportService(this.app, this.settings);
-		this.sourceService = new SourceService(this.app);
 
 		// Register commands
 		this.registerCommands();
@@ -62,24 +57,6 @@ export default class ExportPaperPlugin extends Plugin {
 	 * Register all plugin commands
 	 */
 	private registerCommands(): void {
-		// Source import command
-		this.addCommand({
-			id: "import-source",
-			name: "Import source (DOI, ISBN, URL, BibTeX)",
-			editorCheckCallback: (checking: boolean) => {
-				const activeFile = this.app.workspace.getActiveFile();
-				if (!(activeFile instanceof TFile)) {
-					return false;
-				}
-
-				if (checking) {
-					return true;
-				}
-
-				this.handleSourceImport(activeFile);
-				return true;
-			},
-		});
 
 		// In-vault export command
 		this.addCommand({
@@ -142,34 +119,9 @@ export default class ExportPaperPlugin extends Plugin {
 				this.handleSelectionExport(activeFile, selection);
 			},
 		});
-
-		// Add bibliography commands
-		const bibliographyCommands = getBibliographyCommands(this.app);
-		bibliographyCommands.forEach(command => {
-			this.addCommand(command);
-		});
 	}
 
-	/**
-	 * Handle source import with modal and file creation
-	 */
-	private async handleSourceImport(activeFile: TFile): Promise<void> {
-		try {
-			// Get the sources folder for this file
-			const sourcesFolder = await this.sourceService.getSourcesFolder(activeFile, this.settings.sources_folder);
-
-			// Open import modal
-			const modal = new SourceImportModal(this.app, this, async (sourceData: SourceData) => {
-				await this.sourceService.createSourceFile(sourceData, sourcesFolder);
-			});
-
-			modal.open();
-		} catch (error) {
-			console.error("Failed to handle source import:", error);
-			new Notice("Failed to import source. Check console for details.");
-		}
-	}
-
+	
 	/**
 	 * Handle vault export with proper error handling and user feedback
 	 */

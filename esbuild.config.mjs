@@ -49,15 +49,24 @@ const context = await esbuild.context({
 		'process.env.NODE_ENV': '"development"',
 		'Buffer': 'Buffer',
 	},
-	platform: 'browser',
+	platform: "neutral",//'node',//'browser',
 	mainFields: ['browser', 'module', 'main'],
 	plugins: [
 		// Handle Node.js built-in modules with trailing slash
 		{
 			name: 'node-builtins-trailing-slash',
 			setup(build) {
-				// Only handle specific Node.js built-ins with trailing slash
+				// Only handle specific Node.js built-ins with trailing slash, but exclude node: prefix
 				build.onResolve({ filter: /^(buffer|util|assert)\/$/ }, (args) => {
+					// Skip if path starts with node:
+					// if (args.path.startsWith('node:')) {
+					// 	const moduleName = args.path
+					// 	return build.resolve(moduleName, {
+					// 		kind: args.kind,
+					// 		resolveDir: args.resolveDir,
+					// 		external: false
+					// 	});
+					// }
 					const moduleName = args.path.slice(0, -1);
 					return build.resolve(moduleName, {
 						kind: args.kind,
@@ -66,6 +75,7 @@ const context = await esbuild.context({
 				});
 			},
 		},
+		// plugin(["buffer", "util", "assert"])
 		plugin(stdLibBrowser),
 	],
 });
@@ -76,3 +86,5 @@ if (prod) {
 } else {
 	await context.watch();
 }
+
+

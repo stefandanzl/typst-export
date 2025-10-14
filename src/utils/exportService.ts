@@ -12,21 +12,24 @@ import {
 } from "../export_longform";
 import { DEFAULT_TYPST_TEMPLATE } from "../export_longform/interfaces";
 import { joinNormPath } from ".";
-import { BibliographyExporter } from "./exportbib";
+import { BibliographyService } from "./bibliographyService";
+import { promisify } from "node:util";
 
+// Use require for child_process in Obsidian environment
+const { exec } = require("child_process");
 /**
  * Service for handling export operations
  */
 export class ExportService {
 	private fileManager: FileManagementService;
-	private bibliographyExporter: BibliographyExporter;
+	private bibliographyService: BibliographyService;
 
 	constructor(private app: App, private settings: ExportPluginSettings) {
 		this.fileManager = new FileManagementService(
 			this.app.vault,
 			this.app.vault.adapter as FileSystemAdapter
 		);
-		this.bibliographyExporter = new BibliographyExporter(
+		this.bibliographyService = new BibliographyService(
 			this.app,
 			this.settings
 		);
@@ -105,72 +108,31 @@ export class ExportService {
 	}
 
 	/**
-	 * Resolve bibliography file path from frontmatter or settings
-	 * Now handles both traditional .bib files and sources folder for BibTeX generation
+	 * Get typst_bib setting from frontmatter or settings
 	 */
-	private async resolveBibPath(
+	private getTypstBibSetting(
 		frontmatter: { [key: string]: string },
 		settings: ExportPluginSettings
-	): Promise<{ path: string; needsGeneration: boolean }> {
-		// Check typst_bib setting with auto-detection by extension
+	): string | null {
+		// Check typst_bib setting from frontmatter first
 		if ("typst_bib" in frontmatter) {
 			const typstBib = frontmatter.typst_bib;
-
 			if (typstBib && typstBib !== "" && typstBib !== null) {
-				const normalizedPath = normalizePath(typstBib);
-
-				// Auto-detect by extension
-				if (typstBib.endsWith(".bib")) {
-					// Legacy .bib file mode
-					const file = this.app.vault.getFileByPath(normalizedPath);
-					if (file) {
-						return {
-							path: normalizedPath,
-							needsGeneration: false,
-						};
-					} else {
-						new Notice(
-							`⚠️ Bibliography file not found: ${normalizedPath} (from frontmatter)`
-						);
-					}
-				} else {
-					// Directory mode - generate BibTeX from sources
-					return {
-						path: normalizedPath,
-						needsGeneration: true,
-					};
-				}
+				return normalizePath(typstBib);
 			}
 		}
 
 		// Fall back to settings for traditional .bib file
 		if (settings.bib_file && settings.bib_file !== "") {
-			const file = this.app.vault.getFileByPath(settings.bib_file);
-			if (file) {
-				return {
-					path: settings.bib_file,
-					needsGeneration: false,
-				};
-			} else {
-				new Notice(
-					`⚠️ Bibliography file not found: ${settings.bib_file} (from settings)`
-				);
-			}
+			return settings.bib_file;
 		}
 
-		// Check if we should generate from default sources folder
+		// Fall back to sources folder
 		if (settings.sources_folder && settings.sources_folder !== "") {
-			return {
-				path: settings.sources_folder,
-				needsGeneration: true,
-			};
+			return settings.sources_folder;
 		}
 
-		// No bibliography specified
-		return {
-			path: "",
-			needsGeneration: false,
-		};
+		return null;
 	}
 
 	/**
@@ -233,17 +195,12 @@ export class ExportService {
 				messageBuilder
 			);
 
-			// 3. Handle supporting files (can override template defaults)
-			const bibPathInfo = await this.resolveBibPath(
+			// 3. Handle bibliography
+			await this.handleBibliographyExternal(
 				parsedContents.yaml,
-				settings
-			);
-			await this.handleSupportingFilesExternal(
-				parsedContents,
 				exportPaths,
 				settings,
-				messageBuilder,
-				bibPathInfo
+				messageBuilder
 			);
 
 			// 4. Write the main output file (mainmd.tex) last
@@ -350,17 +307,12 @@ export class ExportService {
 				settings.replace_existing_files
 			);
 
-			// 3. Handle supporting files (can override template defaults)
-			const bibPathInfo = await this.resolveBibPath(
+			// 3. Handle bibliography
+			await this.handleBibliographyVault(
 				parsedContents.yaml,
-				settings
-			);
-			await this.handleSupportingFilesVault(
-				parsedContents,
 				exportPaths,
 				settings,
-				messageBuilder,
-				bibPathInfo
+				messageBuilder
 			);
 
 			// 4. Check if output file exists and handle accordingly
@@ -469,16 +421,15 @@ export class ExportService {
 	}
 
 	/**
-	 * Handles supporting files for external export
+	 * Handles bibliography for external export
 	 */
-	private async handleSupportingFilesExternal(
-		parsedContents: parsed_longform,
+	private async handleBibliographyExternal(
+		frontmatter: { [key: string]: string },
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
-		messageBuilder: ExportMessageBuilder,
-		bibPathInfo: { path: string; needsGeneration: boolean }
+		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
-		// Handle header file
+		// Handle header file first
 		await this.fileManager.handleHeaderFileExternal(
 			exportPaths.headerPath,
 			messageBuilder,
@@ -486,44 +437,32 @@ export class ExportService {
 			settings.replace_existing_files
 		);
 
-		// Handle bibliography file
-		if (bibPathInfo.needsGeneration) {
-			// Generate BibTeX from sources folder
-			const bibConfig = {
-				mode: "directory" as const,
-				path: bibPathInfo.path,
-			};
-			const bibtexPath =
-				await this.bibliographyExporter.exportBibliography(
-					bibConfig,
-					exportPaths.outputFolderPath
-				);
-			console.log(`Generated bibliography: ${bibtexPath}`);
-		} else {
-			// Use traditional .bib file
-			const bibFile = bibPathInfo.path
-				? this.app.vault.getFileByPath(bibPathInfo.path)
-				: undefined;
-			await this.fileManager.handleBibFileExternal(
-				bibFile || undefined,
-				exportPaths.bibPath,
-				messageBuilder,
-				settings.replace_existing_files
-			);
+		// Handle bibliography using the new service
+		const typstBib = this.getTypstBibSetting(frontmatter, settings);
+		const result = await this.bibliographyService.handleBibliographyGeneration(
+			typstBib || undefined,
+			exportPaths.bibPath,
+			settings.sources_folder
+		);
+
+		if (result.success && result.path) {
+			console.log(`Bibliography handled: ${result.path}`);
+		} else if (result.error) {
+			console.warn(`Bibliography generation failed: ${result.error}`);
+			// Don't fail the entire export, just continue without bibliography
 		}
 	}
 
 	/**
-	 * Handles supporting files for vault export
+	 * Handles bibliography for vault export
 	 */
-	private async handleSupportingFilesVault(
-		parsedContents: parsed_longform,
+	private async handleBibliographyVault(
+		frontmatter: { [key: string]: string },
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
-		messageBuilder: ExportMessageBuilder,
-		bibPathInfo: { path: string; needsGeneration: boolean }
+		messageBuilder: ExportMessageBuilder
 	): Promise<void> {
-		// Handle header file
+		// Handle header file first
 		await this.fileManager.handleHeaderFileVault(
 			exportPaths.headerPath,
 			messageBuilder,
@@ -531,30 +470,19 @@ export class ExportService {
 			settings.replace_existing_files
 		);
 
-		// Handle bibliography file
-		if (bibPathInfo.needsGeneration) {
-			// Generate BibTeX from sources folder
-			const bibConfig = {
-				mode: "directory" as const,
-				path: bibPathInfo.path,
-			};
-			const bibtexPath =
-				await this.bibliographyExporter.exportBibliography(
-					bibConfig,
-					exportPaths.outputFolderPath
-				);
-			console.log(`Generated bibliography: ${bibtexPath}`);
-		} else {
-			// Use traditional .bib file
-			const bibFile = bibPathInfo.path
-				? this.app.vault.getFileByPath(bibPathInfo.path)
-				: undefined;
-			await this.fileManager.handleBibFileVault(
-				bibFile || undefined,
-				exportPaths.bibPath,
-				messageBuilder,
-				settings.replace_existing_files
-			);
+		// Handle bibliography using the new service
+		const typstBib = this.getTypstBibSetting(frontmatter, settings);
+		const result = await this.bibliographyService.handleBibliographyGeneration(
+			typstBib || undefined,
+			exportPaths.bibPath,
+			settings.sources_folder
+		);
+
+		if (result.success && result.path) {
+			console.log(`Bibliography handled: ${result.path}`);
+		} else if (result.error) {
+			console.warn(`Bibliography generation failed: ${result.error}`);
+			// Don't fail the entire export, just continue without bibliography
 		}
 	}
 
@@ -722,11 +650,12 @@ export class ExportService {
 			console.log(`Final command after replacement: ${finalCommand}`);
 
 			// Import required modules for command execution
-			const { exec } = require("child_process");
-			console.log("A1");
-			const util = require("util");
+			// const { exec } = require("child_process");
+			// console.log("A1");
+			// const util = require("util");
 			console.log("2");
-			const execPromise = util.promisify(exec);
+			// const execPromise = util.promisify(exec); // <---- this line creates error
+			const execPromise = promisify(exec); // <---- this line creates error
 			console.log("A3");
 
 			console.log("finalCommand:", finalCommand);

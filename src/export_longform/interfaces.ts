@@ -33,6 +33,9 @@ export interface ExportPluginSettings {
 	// Bibliography settings
 	bibliographyFilename: string;
 	autoGenerateCitekeys: boolean;
+	// Bibliography API settings
+	useBibliographyAPI: boolean;
+	bibliographyAPIStatus: "unknown" | "available" | "unavailable";
 }
 
 export const DEFAULT_SETTINGS: ExportPluginSettings = {
@@ -55,6 +58,9 @@ export const DEFAULT_SETTINGS: ExportPluginSettings = {
 	// Bibliography settings
 	bibliographyFilename: "bibliography.bib",
 	autoGenerateCitekeys: true,
+	// Bibliography API settings
+	useBibliographyAPI: true,
+	bibliographyAPIStatus: "unknown",
 };
 
 export const DEFAULT_TYPST_TEMPLATE = `

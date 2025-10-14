@@ -7,6 +7,7 @@ export { FileManagementService } from "./fileManagementService";
 export { ExportService } from "./exportService";
 export { ExportMessageBuilder } from "./messageBuilder";
 export { WarningModal } from "./warningModal";
+export { BibliographyService } from "./bibliographyService";
 
 // Export constants
 export * from "./constants";
