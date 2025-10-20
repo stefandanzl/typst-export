@@ -48,7 +48,7 @@ export interface ExportPaths {
 	readonly outputFilePath: string;
 	readonly headerPath: string;
 	readonly preamblePath: string;
-	readonly bibPath: string;
+	readonly bibFile: string;
 	readonly attachmentsPath: string;
 }
 

@@ -20,14 +20,14 @@ export class TypstExportSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// Order: 6, 2, 3, 4, 1, 7, 8, 5
-		// Then Advanced Parsing Options section
+		// Template Settings Section
+		containerEl.createEl("h3", { text: "Template Settings" });
 
-		// 6. Header names for template sections
+		// Header names for template sections
 		new Setting(containerEl)
 			.setName("Header names for template sections")
 			.setDesc(
-				"Add the names of the sections that should be included in the template. The default values are 'abstract' and 'appendix'. Don't add 'body' to the list, as it is always included in the template. Values can then be referenced in template files for example as {{abstract}}."
+				"Add names of sections that should be included in template. The default values are 'abstract' and 'appendix'. Don't add 'body' to the list, as it is always included in the template. Values can then be referenced in template files for example as {{abstract}}."
 			);
 
 		// Display existing section names with remove buttons
@@ -87,7 +87,7 @@ export class TypstExportSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// 2. Typst template file
+		// Typst template file
 		new Setting(containerEl)
 			.setName("Typst template file")
 			.setDesc(
@@ -104,11 +104,11 @@ export class TypstExportSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// 3. Typst template folder
+		// Typst template folder
 		new Setting(containerEl)
 			.setName("Typst template folder")
 			.setDesc(
-				"Relative vault path to a folder containing Typst template files (e.g., .typ files, images, etc.). The entire folder contents will be copied to the export directory. Can be overridden with frontmatter key 'typst_template_folder'."
+				"Relative vault path to a folder containing Typst template files (e.g., .typ files, images, etc.). The entire folder contents will be copied to export directory. Can be overridden with frontmatter key 'typst_template_folder'."
 			)
 			.addText((text) =>
 				text
@@ -121,48 +121,65 @@ export class TypstExportSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// 4. Sources folder
+		// Main Export Settings
+		containerEl.createEl("h3", { text: "Main Export Settings" });
+
+		// Base output folder
 		new Setting(containerEl)
-			.setName("Sources folder")
+			.setName("Base output folder")
 			.setDesc(
-				"Default vault relative path for storing source markdown files. Example: 'Sources' or 'References/Sources'. Can be overridden with frontmatter key 'typst_bib'."
+				"Base folder within vault where exports will be saved. A subfolder named after the document will be created in this location."
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("Sources")
-					.setValue(this.plugin.settings.sources_folder)
+					.setPlaceholder("/")
+					.setValue(this.plugin.settings.base_output_folder)
 					.onChange(async (value) => {
-						this.plugin.settings.sources_folder =
-							value.trim() === "" ? "Sources" : normalizePath(value);
+						this.plugin.settings.base_output_folder =
+							normalizePath(value || "/");
 						await this.plugin.saveSettings();
 					})
 			);
 
-		// 5. Bibliography file
+		// Replace existing files toggle
 		new Setting(containerEl)
-			.setName("Bibliography file")
+			.setName("Replace existing files")
 			.setDesc(
-				"Vault relative path to a bibliography file. Example: 'bibliography.bib' or 'refs/my-references.bib'. Can be overridden with frontmatter key 'typst_bib'."
+				"Overwrite existing files during export. When disabled, export will skip if files already exist."
 			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/bib_file.bib")
-					.setValue(this.plugin.settings.bib_file)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.replace_existing_files)
 					.onChange(async (value) => {
-						this.plugin.settings.bib_file =
-							value.trim() === "" ? "" : normalizePath(value);
+						this.plugin.settings.replace_existing_files = value;
 						await this.plugin.saveSettings();
 					})
 			);
 
-		// Bibliography API Settings Section
-		containerEl.createEl("h3", { text: "Bibliography API Settings" });
+		// Typst post conversion command
+		new Setting(containerEl)
+			.setName("Typst post conversion command")
+			.setDesc(
+				"Command to run after export completion. Use $filepath as placeholder for the exported file. Example: 'typst compile $filepath'"
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("typst compile $filepath")
+					.setValue(this.plugin.settings.typst_post_command)
+					.onChange(async (value) => {
+						this.plugin.settings.typst_post_command = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Bibliography Settings Section
+		containerEl.createEl("h3", { text: "Bibliography Settings" });
 
 		// Use Bibliography API toggle
 		new Setting(containerEl)
 			.setName("Use Bibliography API")
 			.setDesc(
-				"Enable to use the Bibliography Manager plugin for automatic bibliography generation from sources. Disable to only use existing .bib files."
+				"Enable to use the Bibliography Manager plugin for automatic bibliography generation from sources. Supports .bib, .yaml, .json source files."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -172,6 +189,20 @@ export class TypstExportSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 						// Refresh display to update API status
 						this.display();
+					})
+			);
+
+		// Check API availability button
+		new Setting(containerEl)
+			.setName("Check Bibliography Plugin")
+			.setDesc(
+				"Check if the Bibliography Manager plugin is installed and available."
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Check Availability")
+					.onClick(async () => {
+						await this.checkBibliographyPlugin();
 					})
 			);
 
@@ -190,113 +221,54 @@ export class TypstExportSettingTab extends PluginSettingTab {
 			statusIndicator.style.color = "var(--text-muted)";
 		}
 
-		// Check API availability button
+		// Sources folder
 		new Setting(containerEl)
-			.setName("Check Bibliography Plugin")
+			.setName("Sources folder")
 			.setDesc(
-				"Check if the Bibliography Manager plugin is installed and available."
+				"Default vault relative path for storing source files (.bib, .yaml, .json). Example: 'Sources' or 'References/Sources'. Can be overridden with frontmatter key 'typst_sourcefolder'."
 			)
-			.addButton((button) =>
-				button
-					.setButtonText("Check Availability")
-					.onClick(async () => {
-						await this.checkBibliographyPlugin();
+			.addText((text) =>
+				text
+					.setPlaceholder("Sources")
+					.setValue(this.plugin.settings.sources_folder)
+					.onChange(async (value) => {
+						this.plugin.settings.sources_folder =
+							value.trim() === "" ? "Sources" : normalizePath(value);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Bibliography output filename
+		new Setting(containerEl)
+			.setName("Bibliography output filename")
+			.setDesc(
+				"Filename for the generated bibliography file. Will be available in templates as {{bibliography}}. Can be overridden with frontmatter key 'typst_bibfile'."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("bibliography.bib")
+					.setValue(this.plugin.settings.bibliographyFilename)
+					.onChange(async (value) => {
+						this.plugin.settings.bibliographyFilename =
+							value.trim() === "" ? "bibliography.bib" : normalizePath(value);
+						await this.plugin.saveSettings();
 					})
 			);
 
 		// API info
-		const apiInfoContainer = containerEl.createDiv();
-		apiInfoContainer.createEl("p", {
-			text: "When API is enabled, typst_bib can reference directories (e.g., 'sources') to auto-generate bibliography from source files.",
+		const bibliographyInfoContainer = containerEl.createDiv();
+		bibliographyInfoContainer.createEl("p", {
+			text: "When API is enabled, bibliography will be automatically generated from the sources folder. Disable API to manually manage .bib files in your template folder.",
 			cls: "setting-item-description"
 		});
 
-		// 1. Output folder
-		new Setting(containerEl)
-			.setName("Output folder")
-			.setDesc(
-				"Vault relative path of an existing folder in your vault. Exports will be written within that folder."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("path/to/output_folder/")
-					.setValue(this.plugin.settings.base_output_folder)
-					.onChange(async (value) => {
-						this.plugin.settings.base_output_folder = value;
-						console.log("Base output folder set to:", value);
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// 7. Replace existing files
-		new Setting(containerEl)
-			.setName("Replace existing files")
-			.setDesc(
-				"Whether to replace already existing files during export. If disabled, existing files will be preserved and not overwritten."
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.replace_existing_files)
-					.onChange(async (value) => {
-						this.plugin.settings.replace_existing_files = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// 8. Last external folder
-		new Setting(containerEl)
-			.setName("Last external folder")
-			.setDesc(
-				"The last used external folder for exports. Updated automatically when exporting externally."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder(
-						"Last used external folder (e.g., /home/user/typst)"
-					)
-					.setValue(this.plugin.settings.last_external_folder)
-					.onChange(async (value) => {
-						this.plugin.settings.last_external_folder =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// 5. Typst post-conversion command
-		new Setting(containerEl)
-			.setName("Typst post-conversion command")
-			.setDesc(
-				"Command to run after converting to Typst. Use $filepath as placeholder for the absolute path to the generated .typ file. Example: 'typst compile $filepath'"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("typst compile $filepath")
-					.setValue(this.plugin.settings.typst_post_command)
-					.onChange(async (value) => {
-						this.plugin.settings.typst_post_command = value;
-						await this.plugin.saveSettings();
-					})
-			)
-			.addButton((button) =>
-				button
-					.setButtonText("Test")
-					.setTooltip(
-						"Test the command (replaces $filepath with a sample path)"
-					)
-					.onClick(async () => {
-						await this.testPostCommand(
-							this.plugin.settings.typst_post_command
-						);
-					})
-			);
-
-		// Advanced Parsing Options
+		// Advanced Parsing Options Section
 		containerEl.createEl("h3", { text: "Advanced Parsing Options" });
 
 		new Setting(containerEl)
 			.setName("Prioritize lists over equations")
 			.setDesc(
-				"Whether to include display equations in lists, or stop the list and have the equation outside of the list."
+				"Whether to include display equations in lists, or stop list and have equation outside of list."
 			)
 			.addToggle((cb) =>
 				cb
@@ -310,7 +282,7 @@ export class TypstExportSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Display environment names")
 			.setDesc(
-				"Set display attribute of the wikilink as the visible name of the environment. If no display value is found, the value of the frontmatter entry 'typst_title' will be used. If that is not found, use the file name if 'Default environment title to file name' is set. Setting any such field to an empty string specifies the absence of a title."
+				"Set display attribute of wikilink as visible name of environment. If no display value is found, value of frontmatter entry 'typst_title' will be used for embedded theorem environments. If that is not found, use file name if 'Default environment title to file name' is set. Setting any such field to an empty string specifies absence of a title."
 			)
 			.addToggle((cb) =>
 				cb
@@ -324,7 +296,7 @@ export class TypstExportSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Default environment title to file name")
 			.setDesc(
-				"Use file names (without the file extension) as a default environment name."
+				"Use file names (without file extension) as a default environment name."
 			)
 			.addToggle((cb) =>
 				cb
@@ -383,7 +355,7 @@ export class TypstExportSettingTab extends PluginSettingTab {
 				new Notice("✅ Bibliography Manager plugin is available and API is ready", 3000);
 			} else {
 				this.plugin.settings.bibliographyAPIStatus = "unavailable";
-				new Notice("❌ Bibliography Manager plugin not found or API not available. Please install the plugin.", 5000);
+				new Notice("❌ Bibliography Manager plugin not found or API not available. Please install plugin.", 5000);
 			}
 
 			await this.plugin.saveSettings();

@@ -127,7 +127,7 @@ export const DEFAULT_TYPST_TEMPLATE = `
 
 // Bibliography
 #pagebreak()
-#bibliography("bibliography.bib", title: "Bibliography", style: "ieee")
+#bibliography("{{bibliography}}", title: "Bibliography", style: "ieee")
 
 // Appendix
 #if "{{appendix}}".len() > 0 [

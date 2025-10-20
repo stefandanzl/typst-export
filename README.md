@@ -1,538 +1,583 @@
-# Typst Export
+# Typst Export Plugin for Obsidian
 
-Write academic papers directly in Obsidian! Export an Obsidian note to a full-fledged Typst document, including embedded content, citations, cross-references, figures, tables, and more. All content visible in Obsidian will be included in the export!
-
-## Quick Syntax Reference
-
-### Images & Figures
-| Feature | Syntax | Reference |
-|---------|--------|-----------|
-| Wikilink image | `![[image.png\|Caption]]` | No label (not referenceable) |
-| Wikilink with label | `![[image.png\|Caption]]<@custom>` | `@custom` |
-| Markdown image | `![Caption](image.png)` | No label (not referenceable) |
-| Markdown with label | `![Caption](image.png)<@diagram>` | `@diagram` |
-
-### Tables
-| Feature | Syntax | Reference |
-|---------|--------|-----------|
-| Basic table | `\| H1 \| H2 \|\n\|----\|----\|\n\| C1 \| C2 \|` | No label (not referenceable) |
-| With caption only | Table + newline + `Caption text` | No label |
-| Caption with label | Table + newline + `Caption<@my-table>` | `@my-table` |
-| Label with caption | Table + newline + `<@my-table>Caption` | `@my-table` |
-| Label only | Table + newline + `<@my-table>` | `@my-table` |
-
-### Math & Equations
-| Feature | Syntax | Reference |
-|---------|--------|-----------|
-| Inline math | `$x^2$` | N/A |
-| Display math | `$$x^2$$` | N/A |
-| Labeled equation | `$$E=mc^2$${#eq-einstein}` | `@eq-einstein` |
-| Align environment | `$$\begin{align}...\end{align}$${#eq-sys}` | `@eq-sys-1`, `@eq-sys-2` |
-
-### Citations
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Simple citation | `[[@source-note]]` | Links to markdown file in your vault |
-| With locator | `[[@source-note]][p. 42]` or `@source-note[Theorem 3.1]` | Any reference detail |
-| Multiple citations | `[[@source1]][[@source2]]` | Combined in single cite command |
-| Pandoc style | `[@smith2021, p. 14]` | Alternative syntax |
-
-**Citation Notes:**
-- Citations reference **actual markdown files** in your vault (e.g., `sources/Smith - Neural Networks 2021.md`)
-- Use these files to **store notes** about your sources, highlights, thoughts, etc.
-- Set the `aliases` frontmatter value to your **citekey**:
-  ```yaml
-  aliases: ["@smith2021"]
-  ```
-- The plugin will use the alias as the bibliography key
-
-### Cross-References
-| Type | Label Syntax | Example | Notes |
-|------|--------------|---------|-------|
-| Images | `<@label>` | `@diagram` | No auto-labeling; must explicitly add `<@label>` |
-| Tables | `<@label>` | `@results` | No auto-labeling; must explicitly add `<@label>` |
-| Equations | `{#eq-label}` | `@eq-einstein` | Still uses `{#...}` syntax |
-| Headers/Wikilinks | Auto (internal) | `@loc-introduction` | Auto-generated with `loc-` prefix (internal only) |
-
-### Frontmatter Overrides (Optional, main file only)
-```yaml
-typst_template: path/to/template.typ
-typst_template_folder: path/to/assets
-typst_bib: path/to/bibliography.bib        # Use existing .bib file
-typst_bib: sources                       # Generate from directory (requires API)
-```
-
-### Special Headers & Template Anchors
-
-**Body Content:**
-- Any h1 headers **before** special headers (`# Abstract`, `# Appendix`) are implicitly part of the body
-- If an explicit `# Body` header exists, **only** content under it is exported as body
-- Headers under special sections are treated as **one level lower** (e.g., h1 → h2, h2 → h3)
-
-| Header in Markdown | Template Anchor | Notes |
-|--------------------|-----------------|-------|
-| `# Body` | `{{body}}` | Optional: Explicitly marks body content (if present, only this is exported) |
-| `# Abstract` | `{{abstract}}` | Special section, headers inside are lowered one level |
-| `# Appendix` | `{{appendix}}` | Special section, headers inside are lowered one level |
-| Custom sections | Configure in settings | Additional structured sections |
-
-**Frontmatter values:**
-```yaml
-title: "My Paper Title"
-author: "Author Name"
-```
-These are accessible in your template and can be used for document metadata.
-
-**Template example:**
-```typst
-#set document(
-  title: "{{title}}",
-  author: "{{author}}"
-)
-
-{{abstract}}
-
-{{body}}
-
-{{appendix}}
-```
+Write academic papers directly in Obsidian! Export an Obsidian note to a full-fledged Typst document, including embedded content, citations, cross-references, figures, tables, and more. All content visible in Obsidian will be included in the export.
 
 ## Features
 
-This plugin supports:
+-   **Seamless Academic Writing**: Write papers directly in Obsidian with real-time preview
+-   **Smart Citation Support**: Multiple citation formats with automatic bibliography generation
+-   **Cross-References**: Reference figures, tables, equations throughout your document
+-   **Template System**: Flexible Typst templates with placeholder substitution
+-   **Bibliography Integration**: Automatic bibliography generation via Bibliography Manager plugin
+-   **Image & Media Support**: Automatic image copying and caption handling
+-   **Mathematical Equations**: Full math support with automatic numbering
+-   **Table Processing**: Smart table extraction with caption support
 
--   **Embedded content**, including content from specific headers
--   **Typst environments** (theorem, lemma, proof, etc.)
--   **Seamless cross-references** using labels and `@` syntax
--   **Citations** with flexible syntax (wikilinks and Pandoc-style)
--   **Section structure** from Markdown headers
--   **Equation references** with custom labels
--   **Title and metadata** from YAML frontmatter
--   **Template-based exports** with customizable Typst templates
--   **Selection export** to clipboard
--   **Markdown to Typst conversion** for most Obsidian elements
--   **Tables** with optional captions and labels
--   **Figures/Images** with captions and labels (wikilink and standard markdown syntax)
--   **Hyperlinks** exported as `#link()` commands
--   **Frontmatter overrides** for template, template folder, and bibliography paths
+## Typst Template System
 
-This plugin works great with:
+The plugin supports flexible Typst templates with placeholder substitution. All content from your document is made available to templates through placeholders.
 
--   **Bibliography Manager** plugin for automatic bibliography generation from source files
--   **Zotero Integration** or **Citations** plugin for bibliography management
--   **Extended MathJax** for LaTeX macros in both Obsidian and exports
+### Template Variables
 
-## Bibliography Integration
+#### Document Metadata Variables
 
-The plugin now supports two approaches to bibliography management:
+These variables are extracted from your main note's frontmatter you are calling the command <!TODO:Command name!> from:
 
-### 1. Existing .bib Files (Traditional)
-Use existing BibTeX files:
-```yaml
-typst_bib: "path/to/bibliography.bib"
+| Variable                         | Source                 | Example                    |
+| -------------------------------- | ---------------------- | -------------------------- |
+| `{{title}}`                      | frontmatter `title`    | "A Comprehensive Study"    |
+| `{{author}}`                     | frontmatter `author`   | "John Doe"                 |
+| `{{date}}`                       | frontmatter `date`     | "2024-01-01"               |
+| `{{abstract}}`                   | frontmatter `abstract` | Your abstract text         |
+| `{{keywords}}`                   | frontmatter `keywords` | "typst, academic, writing" |
+| **Any custom frontmatter field** | Your frontmatter       | `{{custom_field}}`         |
+
+#### Content Section Variables
+
+Variables generated from your document structure:
+
+| Variable           | Content                  | Notes                                            |
+| ------------------ | ------------------------ | ------------------------------------------------ |
+| `{{body}}`         | Main document content    | Excludes abstract, appendix, and custom sections |
+| `{{abstract}}`     | Abstract section content | From `# Abstract` heading or frontmatter         |
+| `{{appendix}}`     | Appendix section content | From `# Appendix` heading                        |
+| `{{bibliography}}` | Bibliography filename    | Path to generated bibliography file              |
+
+#### Custom Section Variables
+
+Any heading in your document becomes available as a template variable:
+
+-   `{{introduction}}` → Content from `# Introduction` heading
+-   `{{methodology}}` → Content from `# Methodology` heading
+-   `{{results}}` → Content from `# Results` heading
+-   `{{conclusion}}` → Content from `# Conclusion` heading
+-   **And any other heading** you create
+
+### Template Syntax
+
+#### Typst Templates (`{{placeholder}}`)
+
+Use `{{placeholder}}` syntax for Typst templates:
+
+### Creating Custom Templates
+
+1. Create a `.typ` file in your template folder
+2. Use `{{placeholder}}` for any content you want to inject
+3. Include all standard Typst imports and setup
+4. Save and select in settings
+
+#### Example Custom Template
+
+```typst
+#set document(
+  title: "{{title}}",
+  author: "{{author}}",
+  date: datetime.today()
+)
+
+#set page(
+  paper: "us-letter",
+  margin: 1in,
+  header: align(right + horizon)[{{title}}],
+  footer: align(center + horizon)[#text(10pt)[Page #counter(page).display()]]
+)
+
+// Main content with custom sections
+{{body}}
+
+{{introduction}}  // Custom section
+{{methodology}}   // Custom section
+{{results}}       // Custom section
+
+// Bibliography
+#pagebreak()
+#bibliography("{{bibliography}}", title: "References")
 ```
 
-### 2. Bibliography Manager Plugin (Recommended)
-Generate bibliographies automatically from source files:
-
-```yaml
-typst_bib: "sources"  # Generate bibliography from source files
-```
-
-**Requirements for Bibliography Manager:**
-- Install the **Bibliography Manager** plugin
-- Enable API integration in Typst Export settings
-- Create source files with proper frontmatter (citekey, title, author, etc.)
-
-**Source file format:**
-```yaml
 ---
-title: "Neural Networks in Practice"
-author: ["Smith, John", "Doe, Jane"]
-year: 2023
-citekey: "smith2023"
-notetype: "source"
-category: ["paper"]
----
-```
 
-**API Settings:**
-- Toggle "Use Bibliography API" in settings
-- Check plugin availability with the "Check Availability" button
-- API status shows: available (green), unavailable (red), or unknown (gray)
+## Citation and Reference System
 
-## Purpose and Concept
+This plugin allows you to keep your academic sources as regular markdown files in your vault, where you can store notes, highlights, and annotations about each source. To use these markdown files as bibliographic sources in your papers, they must have a `citekey` frontmatter value - this citekey gets written into the resulting `.typ` file when exporting to Typst, enabling proper bibliography compilation.
+For a successful compilation with the cli application `typst`, a bibliography file is required (See later chapter). Your sources' citekey values must then be identical to the citekeys that are appearing in your bibliography file in order to successfully compile to `pdf` or `html`.
 
-Using a set of notes in a vault to produce a single polished document is typically challenging. This plugin enables a unified workflow from ideation to final product, all within Obsidian. Your paper can emerge organically from your graph of notes.
+### Best Methods for Citations (Ordered by Ease of Use)
 
-Create a **"longform" note** that structures your content primarily through embed links (transclusions). The longform note assembles content from across your vault into a linear document. When viewed in Obsidian, the paper should be readable from this note alone. Exporting extracts all relevant content and creates a single Typst output file.
-
-**Example workflow:**
-
--   Create a theorem in its own note with `Statement` and `Proof` headers
--   In your longform note, embed the statement: `theorem::![[theorem_note#Statement]]`
--   Later, embed the proof: `proof::![[theorem_note#Proof]]`
--   Reference the theorem anywhere with: `[[theorem_note]]`
--   Export generates proper Typst environments and cross-references
-
-The embedding structure can be recursive - as long as content is visible in Obsidian from the longform note, it will be included in the export.
-
-## How to Use
-
-### Export Commands
-
-#### `Typst Export: Export current note in-vault`
-
-Navigate to your longform note and run this command. The plugin creates a folder in your vault's output directory and writes all required files.
-
-**Content structure:**
-
--   Export all content, OR
--   If an h1 header named `Body` exists, export only content under `Body`
--   Special sections: `Abstract` and `Appendix` h1 headers are handled appropriately
--   Additional sections can be configured in settings
-
-**Files and paths:**
-
--   **Bibliography**:
-    - Use existing `.bib` file: `typst_bib: path/to/bibliography.bib`
-    - Generate from directory: `typst_bib: sources` (requires Bibliography Manager plugin)
-    - Specify in settings or override per-note with `typst_bib` frontmatter key
--   **Template**: Specify in settings or override with `typst_template` frontmatter key
--   **Template folder**: Copy additional template files with `typst_template_folder` setting or frontmatter key
--   Templates should use `{{body}}` anchor (and optionally `{{abstract}}`, `{{appendix}}`)
-
-**Frontmatter overrides** (optional, in main note only):
-
-```yaml
----
-typst_template: path/to/custom-template.typ
-typst_template_folder: path/to/template-assets
-typst_bib: path/to/custom-bibliography.bib    # Use existing file
-typst_bib: sources                            # Generate from directory
----
-```
-
-#### `Typst Export: Export current note externally`
-
-Export to a location outside your vault. Choose the destination folder when prompted.
-
-#### `Typst Export: Export selection to clipboard`
-
-Select text in editing view, run command, and get Typst output on your clipboard. Note: Output may require additional packages to compile standalone.
-
-### Settings
-
-Settings are organized in workflow-chronological order:
-
-1. **Output folder** - Where exports are saved (vault or external)
-2. **Template file path** - Custom Typst template (uses default if empty)
-3. **Typst post-command** - Shell command to run after export (e.g., compile Typst)
-4. **Bibliography file path** - Path to `.bib` file
-5. **Section template names** - Additional h1 headers to export as separate sections
-6. **Replace existing files** - Overwrite files on re-export
-
-**Advanced Parsing Options:**
-
--   **Prioritize lists over equations** - Helps with parsing conflicts
--   **Display environment names** - Show theorem/lemma titles in output
-
-### Warnings and Diagnostics
-
-**Heed the warnings!** They provide feedback on structural issues in your notes:
-
--   Missing cross-reference targets
--   Images without captions
--   Tables without captions
--   Empty frontmatter paths
-
-Warnings appear as Notices (quick) and in the developer console (`Ctrl+Shift+I` / `Cmd+Option+I`).
-
-## Supported Elements
-
-### Headers
-
--   h1 headers → Typst sections
--   h2+ headers → Subsections of appropriate depth
--   If exporting under a `Body` h1 header, h2 becomes top-level sections
-
-### Typst Environments
-
-#### Embedded Environments (Recommended)
-
-Create a note for your theorem with headers:
+#### 1. File Link Citations - Best for Obsidian Workflow
 
 ```markdown
-# Statement
-
-The statement of the theorem...
-
-# Proof
-
-The proof goes here...
+[[Research Paper 2024.md]] # Direct link to source note
+[[Age of Everything.md]] # Rendered as link in reading/editing mode
 ```
 
-In your longform note:
+**Benefits:**
+
+-   Renders as clickable links in Obsidian
+-   Easy to navigate between your paper and sources
+-   Automatically creates citation in Typst export
+
+#### 2. Alias Citations - Clean Display with Links
 
 ```markdown
-theorem::![[theorem_note#Statement]]
+[[Research Paper 2024.md|@smith2024]] # Shows as "[@smith2024]" in "Live Preview" mode but links to file
+[[Long Paper Title.md|@short2024]] # Clean citation with full link access
 ```
 
-Later for the proof:
+**Benefits:**
 
-```markdown
-proof::![[theorem_note#Proof]]
-```
+-   Short, clean citation display in reading/editing mode
+-   Still links to the full source note
+-   Aliases make citations more readable
 
-**Supported environment types**: `theorem`, `lemma`, `corollary`, `definition`, `example`, `proof`, etc.
+### Source Note Setup
 
-**Custom titles**: Use the display field:
-
-```markdown
-theorem::![[theorem_note#Statement|My Custom Theorem Title]]
-```
-
-**Fallbacks for titles**:
-
-1. Display field of the wikilink
-2. `typst_title` frontmatter in the embedded note
-3. Filename (if enabled in settings)
-
-**References**: Use wikilinks: `[[theorem_note]]` or `[[theorem_note#Statement]]`
-
-#### Previously Published Results
-
-Add to the note's frontmatter:
+For both methods above, your source notes need this frontmatter:
 
 ```yaml
 ---
-typst_source: "@bibKey"
-typst_published_name: "Proposition 3.1"
+title: "Full Paper Title"
+citekey: "smith2024" # Required - used in Typst compilation
+aliases: ["@smith2024"] # Optional - for alias citations
+year: 2024
+author: "Smith, John"
 ---
 ```
 
-Wikilinks to this note become citations: `@bibKey[Proposition 3.1]`
+-   `citekey`: **Required** - This gets embedded in the Typst .typ file for bibliography compilation
+-   `aliases`: Optional - Only needed if you want to use alias citation format
 
-#### Explicit Environments
+### Bibliography Compilation
 
-Write directly in your note:
+The citekeys in your Typst file need a corresponding bibliography file for PDF compilation:
 
-```markdown
-lemma::
-The following is always true.
-$$\prod > \sum$$
-::lemma{#my-lemma}
-```
+-   **BibTeX format**: `.bib` files (most common)
+-   **Hayagriva format**: `.yaml` files (modern Typst format)
 
-Label format: `{#lem-...}`, `{#thm-...}`, etc.
+The plugin can automatically generate these files if set up in Bibliography Manager API (see [Bibliography Setup](#bibliography-setup)).
 
-### Math
+### Chapter References
 
-**Inline**: `$inline_math$`
-**Display**: `$$display_math$$`
-
-Display equations export to Typst equation blocks.
-
-### Labeled Equations
+If you're including parts of your own work:
 
 ```markdown
-$$E = mc^2$${#eq-einstein}
+# Importing content
+
+![[methodology.md]] # Imports full content of methodology.md
+
+# Referencing chapters without citekeys
+
+[[methodology.md#Data Collection]] # Links to "Data Collection" section
+[[results.md#Statistical Analysis]] # Links to specific analysis section
 ```
 
-Reference: `@eq-einstein`
+### External Source Management
 
-**Align environments:**
+If you use external reference managers (Zotero, Mendeley, etc.):
 
 ```markdown
-$$
-\begin{align}
-x &= y \\
-a &= b
-\end{align}
-$$
-
-{#eq-system}
+@smith2024 # Simple citation
+[@smith2024] # Parenthetical citation
+[@smith2024, p. 42] # With page locator
 ```
 
-Reference lines: `@eq-system-1`, `@eq-system-2`
+**Important:** You must have a bibliography file (.bib or .yaml) that contains the `smith2024` entry.
+
+### Advanced Citation Features (Enhanced Use)
+
+For more control over citation formatting, you can use prefix and suffix text. While syntactically not as clean, these features allow for page numbers and specific citation styles:
+
+```markdown
+See @smith2024 for details # Prefix: "See "
+[@smith2024, p. 42] # Suffix: ", p. 42"
+According to @johnson2023, the results show # Prefix: "According to "
+The method [@zhang2024, Algorithm 1] proves # Suffix: ", Algorithm 1"
+```
+
+**Multiple Citations:**
+
+```markdown
+@smith2024; @jones2023; @chen2024 # Multiple sources in one citation
+```
+
+### Label References vs Citations
+
+**Be careful:** The `@` symbol is used for both citations AND labels.
+
+#### Citations (Bibliography)
+
+```markdown
+@smith2024 # Links to bibliography entry
+[@chen2024, p. 45] # Citation with page number
+```
+
+#### Labels (Cross-references)
+
+```markdown
+![[graph.png|Results]]<@fig:results> # Figure label
+
+# Analysis {#sec:analysis} # Section label
+
+$$E=mc^2$${#eq:einstein} # Equation label
+```
+
+#### Using Labels
+
+```markdown
+As shown in @fig:results, the analysis demonstrates...
+See @sec:analysis for detailed methodology.
+Equation @eq:einstein shows the relationship.
+```
+
+### Label Rules
+
+-   Labels can be any text you choose: `@fig:arch`, `@table1`, `@results_diagram`
+-   **Critical**: No two labels can be identical in your document
+-   Labels work for: figures, tables, equations, sections
+-   Labels create cross-references within your document (not bibliography entries)
+
+### Complete Example
+
+```markdown
+---
+title: "Neural Network Research"
+author: "Jane Doe"
+citekey: "doe2024" # If this is a source for other papers
+---
+
+# Introduction
+
+Our approach builds on previous work [[Zhang et al., 2023.md|@zhang2023]].
+
+# Methods
+
+![[architecture.png|Network architecture]]<@fig:arch>
+
+The architecture (@fig:arch) extends the model proposed by @liu2022.
+
+The training equation is:
+
+$$\text{loss} = \frac{1}{n}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2$${#eq:loss}
+
+Using equation @eq:loss, we can optimize the network parameters.
+
+For implementation details, see [[implementation.md#Training Section]].
+
+The results [@wang2024, Table 3] confirm our hypothesis.
+```
+
+### Setting Up Citations
+
+1. **Create source files** in your vault (e.g., `sources/Smith 2024.md`)
+2. **Add citekey to frontmatter**:
+    ```yaml
+    ---
+    aliases: ["@smith2024"]
+    title: "Smith et al. 2024"
+    year: 2024
+    ---
+    ```
+3. **Use in content**: `[@smith2024]`
+
+### Citation Examples
+
+```markdown
+# Methods
+
+We used established methods for neural networks [@smith2024; @jones2023].
+
+Recent advances [@chen2024, p. 142] show significant improvements:
+
+> This is a direct quote from the source [@williams2023].
+
+For more details, see the comprehensive study [[Smith 2024]].
+```
+
+---
+
+## Bibliography Setup
+
+The plugin integrates with the [Bibliography Manager](https://obsidian.md/plugins?id=bibliography-manager) plugin for automatic bibliography generation.
+
+### Benefits of Bibliography Manager Integration
+
+-   **Automatic Citation Processing**: Supports .bib, .yaml, .json source formats
+-   **Format Flexibility**: Export to BibTeX, CSL-JSON, or Hayagriva formats
+-   **Source Organization**: Centralized source management in your vault
+-   **Real-time Updates**: Bibliography updates automatically when sources change
+-   **Cross-format Support**: Works with Zotero, Mendeley, and other reference managers
+-   **Duplicate Detection**: Automatic duplicate citation handling
+-   **Citation Style Support**: Multiple citation styles via CSL
+
+### Installation and Setup
+
+1. **Install Bibliography Manager** from Obsidian's community plugins
+2. **Configure Source Files**:
+    ```yaml
+    // In Bibliography Manager settings
+    sources_folder: "Sources"  // Folder containing your source files
+    ```
+3. **Enable API Integration**:
+    ```yaml
+    // In Typst Export settings
+    useBibliographyAPI: true
+    sources_folder: "Sources"    // Must match Bibliography Manager
+    bibliographyFilename: "references.bib"  // Output filename
+    ```
+
+### Configuration Settings
+
+#### General Settings
+
+| Setting                  | Description                          | Default                   |
+| ------------------------ | ------------------------------------ | ------------------------- |
+| **Template Settings**    |                                      |                           |
+| `typst_template_folder`  | Folder containing your templates     | `/templates`              |
+| `typst_template_path`    | Default template to use              | `main.typ`                |
+| **Main Export Settings** |                                      |                           |
+| `base_output_folder`     | Default export directory             | `/`                       |
+| `replace_existing_files` | Overwrite files without confirmation | `true`                    |
+| `last_external_folder`   | Last external export location        |                           |
+| `typst_post_command`     | Command to run after export          | `typst compile $filepath` |
+
+#### Bibliography Settings
+
+| Setting                   | Description                              | Default              |
+| ------------------------- | ---------------------------------------- | -------------------- |
+| **Bibliography Settings** |                                          |                      |
+| `useBibliographyAPI`      | Enable automatic bibliography generation | `true`               |
+| `sources_folder`          | Folder containing source files           | `"Sources"`          |
+| `bibliographyFilename`    | Output bibliography filename             | `"bibliography.bib"` |
+
+### Frontmatter Overrides
+
+You can override any bibliography setting per document using frontmatter:
+
+| Frontmatter Field    | Overrides                      | Example                 |
+| -------------------- | ------------------------------ | ----------------------- |
+| `typst_sourcefolder` | `sources_folder` setting       | `"Sources/Paper1"`      |
+| `typst_bibfile`      | `bibliographyFilename` setting | `"references-ieee.bib"` |
+
+#### Example Document with Overrides
+
+```markdown
+---
+title: "Neural Networks in Modern Computing"
+author: "Jane Doe"
+typst_sourcefolder: "Sources/ML-Paper"
+typst_bibfile: "ml-references.bib"
+---
+
+# Introduction
+
+Neural networks have revolutionized computing [@zhang2024; @patel2023].
+
+Recent advances in deep learning [@zhang2024, Algorithm 1] demonstrate...
+```
+
+This document will:
+
+-   Use sources from `Sources/ML-Paper` instead of the default `Sources`
+-   Generate bibliography as `ml-references.bib` instead of `bibliography.bib`
+
+### Manual Bibliography Mode
+
+If you prefer not to use the Bibliography Manager API:
+
+1. **Set `useBibliographyAPI` to `false`** in settings
+2. **Place your bibliography file** in your template folder
+3. **Use `{{bibliography}}`** in your template to reference it
+
+Template folder structure:
+
+```
+templates/
+├── main.typ
+├── bibliography.bib  ← Your manual bibliography
+└── figures/
+```
+
+---
+
+## Content Syntax Guide
+
+### Images & Figures
+
+| Feature                 | Syntax                           | Reference  | Notes                    |
+| ----------------------- | -------------------------------- | ---------- | ------------------------ |
+| **Basic Image**         | `![[image.png]]`                 | None       | Simple image insertion   |
+| **Image with Caption**  | `![[image.png\|Caption text]]`   | None       | Adds caption below image |
+| **Image with Label**    | `![[image.png\|Caption]]<@fig1>` | `@fig1`    | Referenceable figure     |
+| **Markdown Image**      | `![Caption](path/to/img.png)`    | None       | Standard markdown        |
+| **Markdown with Label** | `![Caption](img.png)<@diagram>`  | `@diagram` | Referenceable figure     |
+
+**Example Usage:**
+
+```markdown
+# Results
+
+![[network-architecture.png\|Neural network architecture]]<@fig:arch>
+
+As shown in @fig:arch, the architecture consists of multiple layers.
+
+![[training-results.png\|Training accuracy over epochs]]<@fig:results>
+```
 
 ### Tables
 
-**Basic syntax:**
+| Feature                   | Syntax                               | Reference | Notes               |
+| ------------------------- | ------------------------------------ | --------- | ------------------- |
+| **Basic Table**           | Standard markdown table              | None      | Simple table        |
+| **Table with Caption**    | Table + newline + `Caption text`     | None      | Adds caption        |
+| **Table with Label**      | Table + newline + `Caption<@table1>` | `@table1` | Referenceable table |
+| **Label without Caption** | Table + newline + `<@table1>`        | `@table1` | Label only          |
 
-```markdown
-| Header1 | Header2 |
-| ------- | ------- |
-| Cell1   | Cell2   |
+**Example:**
+
+```
+# Experimental Results
+
+| Model              | Accuracy | Parameters |
+| ------------------ | -------- | ---------- |
+| ResNet50           | 94.2%    | 25.6M      |
+| EfficientNet       | 96.5%    | 5.3M       |
+| Vision Transformer | 95.8%    | 86.7M      |
+Performance comparison of different models <@table:results>     <--- Notice no empty line between!
+
+As shown in @table:results, EfficientNet achieved the highest accuracy.
 ```
 
-**With caption and label:**
+### Mathematical Equations
+
+| Feature               | Syntax                                     | Reference      | Notes                      |
+| --------------------- | ------------------------------------------ | -------------- | -------------------------- |
+| **Inline Math**       | `$E=mc^2$`                                 | None           | Within text                |
+| **Display Math**      | `$$E=mc^2$$`                               | None           | Displayed on new line      |
+| **Labeled Equation**  | `$$E=mc^2$${#eq:einstein}`                 | `@eq:einstein` | Referenceable equation     |
+| **Align Environment** | `$$\begin{align}...\end{align}$${#eq:sys}` | `@eq:sys-1`    | Multiple labeled equations |
+
+**Example:**
 
 ```markdown
-| Header1 | Header2 |
-| ------- | ------- |
-| Cell1   | Cell2   |
+# Theory
 
-{!Table caption text}{#my-table}
+The energy-mass relationship is given by:
+$$E=mc^2$${#eq:energy}
+
+According to @eq:energy, energy is proportional to mass.
+
+For systems of equations:
+
+$$
+\begin{align}
+x + y &= 10 \tag{1}\\
+x - y &= 2  \tag{2}
+\end{align}$${#eq:system}
+
+Solving @eq:system gives x = 6 and y = 4.
+$$
 ```
 
-Reference: `@my-table`
+### Cross-References
 
-**Notes:**
+Reference any labeled element using the syntax:
 
--   Caption `{!...}` is optional (warning shown if missing)
--   Label `{#...}` is optional (auto-generated if missing)
+-   `@fig:label` for figures
+-   `@table:label` for tables
+-   `@eq:label` for equations
+-   `@sec:label` for sections
 
-### Figures and Images
-
-#### Wikilink syntax:
+**Example:**
 
 ```markdown
-![[folder/subfolder/image.png|Caption text]]
+See @fig:arch for the network architecture, @table:results for performance metrics, and @eq:energy for the theoretical foundation.
 ```
-
-**With custom label:**
-
-```markdown
-![[image.png|Caption text]]{#my-diagram}
-```
-
-#### Standard markdown syntax:
-
-```markdown
-![Caption text](image.png)
-```
-
-**With custom label:**
-
-```markdown
-![Caption text](image.png){#fig-custom}
-```
-
-**Auto-generated labels:**
-
--   Uses only filename (not path): `![[folder1/folder2/image.png]]` → label: `fig-image.png`
--   Reference: `@fig-image.png`
-
-**Notes:**
-
--   Images copied to `Attachments/` folder in export
--   Warning shown if caption missing
--   Supports all common image formats
-
-#### Excalidraw Support
-
-1. Enable "Auto-export PNG" in Excalidraw settings
-2. Ensure PNG exports to your Attachments folder
-3. Embed the `.excalidraw` file: `![[drawing.excalidraw|Caption]]`
-
-### Citations
-
-#### Wikilink Citations
-
-Works with Zotero Integration or Citations plugin:
-
-```markdown
-[[@bibkey]]
-```
-
-**With locator:**
-
-```markdown
-[[@bibkey]][p. 42]
-@bibkey[Theorem 3.1]
-```
-
-**Multiple citations:**
-
-```markdown
-[[@first]][[@second]]
-```
-
-Outputs: Single cite command with multiple keys
-
-#### Pandoc-style Citations
-
-```markdown
-@smith2021 → #cite(<smith2021>)
-[@smith2021] → #cite(<smith2021>)
-[@smith2021, p. 14] → #cite(<smith2021>)[p. 14]
-[@smith2021; @jones2020] → #cite(<smith2021>, <jones2020>)
-```
-
-### Lists
-
--   Ordered and unordered lists supported
--   Nested lists supported
--   Leave blank line to end list
-
-### Hyperlinks
-
-```markdown
-[Link text](https://example.com)
-```
-
-Exports as: `#link("https://example.com")[Link text]`
-
-### Code
-
--   Inline code: `` `code` ``
--   Display code blocks with syntax highlighting
-
-### Comments
-
--   Obsidian comments `%%...%%` excluded from export
--   Markdown quotes can be converted to comments (optional setting)
-
-## Label Reference System
-
-All labels now use **hyphens** instead of colons for compatibility with Typst's `@` syntax.
-
-### Label Prefixes
-
--   Figures: `fig-` (e.g., `@fig-diagram`)
--   Tables: `tbl-` (e.g., `@tbl-results`)
--   Locations/Sections: `loc-` (e.g., `@loc-introduction`)
--   Equations: `eq-` (e.g., `@eq-einstein`)
--   Theorems: `thm-`, `lem-`, `def-`, etc.
-
-### Custom Labels
-
-Always take priority over auto-generated labels:
-
-```markdown
-![[image.png|Caption]]{#custom-label} → @custom-label
-![Caption](img.png){#my-fig} → @my-fig
-{!Table caption}{#results} → @results
-```
-
-### Auto-generated Labels
-
-When no custom label is provided:
-
--   Images: `fig-filename.png` (path stripped)
--   Tables: Generated from caption or content
--   Locations: Based on header text and file name
-
-## Known Limitations
-
--   Nested unordered lists have limited support (indent-blind)
--   Equations starting with `-` or `+` may conflict with list parsing (avoid spaces after `-`/`+`)
-
-## Future Improvements
-
-Let me know through GitHub issues if any enhancements are of interest!
-
-## Support
-
-If you find this plugin helpful, consider supporting development:
-
-## Related Projects
-
--   **Obsidian Pandoc Plugin** - General-purpose document export
--   **Obsidian Enhancing Export** - Alternative export solution
--   **Copy as LaTeX** - Selection export without embedded content support
 
 ---
 
-**Note**: This plugin was originally a LaTeX exporter but has been completely rewritten to focus exclusively on Typst export.
+## Advanced Configuration
+
+### Section Templates
+
+Configure custom section names in settings:
+
+```json
+{
+	"sectionTemplateNames": [
+		"abstract",
+		"methodology",
+		"results",
+		"discussion",
+		"conclusion"
+	]
+}
+```
+
+These become available as template variables: `{{abstract}}`, `{{methodology}}`, etc.
+
+### Post-Export Commands
+
+Set automatic commands to run after export:
+
+```json
+{
+	"typst_post_command": "typst compile $filepath --pdf"
+}
+```
+
+Available variables:
+
+-   `$filepath`: Path to exported file
+-   `$folder`: Export folder path
+-   `$filename`: Export filename without extension
+
+### File Replacement Behavior
+
+Control whether existing files are overwritten:
+
+```json
+{
+	"replace_existing_files": true
+}
+```
+
+When `false`, the plugin will prompt for confirmation before overwriting files.
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Bibliography Not Generated
+
+-   **Check**: Bibliography Manager plugin is installed and enabled
+-   **Check**: `useBibliographyAPI` is `true` in settings
+-   **Check**: `sources_folder` matches between both plugins
+-   **Check**: API status shows "available" in settings
+
+#### Template Variables Not Working
+
+-   **Check**: Variable names in template match frontmatter
+-   **Check**: No typos in placeholder names (`{{variable}}`)
+-   **Check**: Template file is saved with `.typ` extension
+
+#### Citations Not Processing
+
+-   **Check**: Source files have proper `aliases` in frontmatter
+-   **Check**: Citation syntax is correct (`[@citekey]`)
+-   **Check**: Source files are in the correct folder
+
+#### Images Not Copying
+
+-   **Check**: Image paths are correct
+-   **Check**: Template folder includes image files
+-   **Check**: `replace_existing_files` allows overwriting
+
+---
+
+## Acknowledgments
+
+-   [Obsidian](https://obsidian.md/) for the amazing note-taking platform
+-   [Typst](https://typst.app/) for the modern typesetting system
+-   [Bibliography Manager](https://github.com/valentine195/obsidian-bibliography-manager) plugin for citation processing
+-   All contributors and users who help improve this plugin

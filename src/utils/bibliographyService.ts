@@ -1,6 +1,7 @@
-import { App, Notice, FileSystemAdapter, normalizePath } from "obsidian";
+import { App, Notice, normalizePath } from "obsidian";
 import { ExportPluginSettings } from "../export_longform/interfaces";
-import { BibliographyAPI } from "./interfaces";
+import { BibliographyAPI, ExportPaths } from "./interfaces";
+import { joinNormPath } from ".";
 
 export class BibliographyService {
 	constructor(private app: App, private settings: ExportPluginSettings) {}
@@ -31,79 +32,12 @@ export class BibliographyService {
 	}
 
 	/**
-	 * Generate bibliography from typst_bib frontmatter setting
+	 * Generate bibliography via API - get content and write file ourselves
 	 */
-	async generateBibliographyFromTypstBib(
-		typstBib: string,
-		outputPath: string
-	): Promise<string | null> {
-		if (!typstBib) {
-			return null;
-		}
-
-		// If typst_bib ends with .bib, treat as file path
-		if (typstBib.endsWith(".bib")) {
-			return this.copyExistingBibFile(typstBib, outputPath);
-		}
-
-		// Otherwise, treat as directory and try to use API
-		if (this.settings.useBibliographyAPI) {
-			const isAvailable =
-				await this.checkBibliographyPluginAvailability();
-			if (isAvailable) {
-				return this.generateBibliographyViaAPI(typstBib, outputPath);
-			} else {
-				throw new Error(
-					`Bibliography Manager plugin not available. Cannot generate bibliography from directory: ${typstBib}`
-				);
-			}
-		}
-
-		// Directory specified but API is disabled
-		throw new Error(
-			`Cannot generate bibliography from directory '${typstBib}' because Bibliography API is disabled. Please enable the API or specify a .bib file path.`
-		);
-	}
-
-	/**
-	 * Copy existing .bib file to output path
-	 */
-	private async copyExistingBibFile(
-		sourcePath: string,
-		outputPath: string
-	): Promise<string> {
-		try {
-			const sourceFile = this.app.vault.getFileByPath(
-				normalizePath(sourcePath)
-			);
-			if (!sourceFile) {
-				throw new Error(`Bibliography file not found: ${sourcePath}`);
-			}
-
-			// Ensure output directory exists
-			await this.ensureDirectoryExists(
-				outputPath.substring(0, outputPath.lastIndexOf("/"))
-			);
-
-			const content = await this.app.vault.read(sourceFile);
-			await this.app.vault.adapter.write(outputPath, content);
-
-			console.log(
-				`Copied bibliography file from ${sourcePath} to ${outputPath}`
-			);
-			return outputPath;
-		} catch (error) {
-			console.error("Failed to copy bibliography file:", error);
-			throw error;
-		}
-	}
-
-	/**
-	 * Generate bibliography via API
-	 */
-	private async generateBibliographyViaAPI(
+	async generateBibliographyViaAPI(
 		sourcesFolder: string,
-		outputPath: string
+		outputPath: string,
+		bibFileName: string
 	): Promise<string> {
 		try {
 			const bibPlugin = (this.app as any).plugins.plugins[
@@ -114,14 +48,33 @@ export class BibliographyService {
 				throw new Error("Bibliography API not available");
 			}
 
-			const bibPath = await bibPlugin.api.exportBibliographyToPath(
-				normalizePath(sourcesFolder),
-				normalizePath(outputPath),
+			// Get normalized paths
+			const normalizedSources = normalizePath(sourcesFolder);
+			const normalizedBibOutput = joinNormPath(outputPath, bibFileName);
+			console.log("DEBUG - API call parameters:");
+			console.log("  sourcesFolder:", normalizedSources);
+			console.log("  bibOutputPath:", normalizedBibOutput);
+
+			// Get bibliography content from API (not path like exportBibliographyToPath)
+			const bibContent = await bibPlugin.api.exportBibliography(
+				normalizedSources,
+				bibFileName,
 				""
 			);
 
-			// console.log(`Generated bibliography via API: ${bibPath}`);
-			return bibPath;
+			// Write the content to the output file ourselves
+			const adapter = this.app.vault.adapter as any;
+			if (adapter.write) {
+				await adapter.write(normalizedBibOutput, bibContent);
+			} else {
+				// Fallback for different adapter implementations
+				await this.app.vault.create(normalizedBibOutput, bibContent);
+			}
+
+			console.log(
+				`Generated bibliography via API: ${normalizedBibOutput}`
+			);
+			return normalizedBibOutput;
 		} catch (error) {
 			console.error("Failed to generate bibliography via API:", error);
 			throw error;
@@ -129,62 +82,98 @@ export class BibliographyService {
 	}
 
 	/**
-	 * Ensure directory exists
+	 * Get sources folder with frontmatter override
 	 */
-	private async ensureDirectoryExists(dirPath: string): Promise<void> {
-		if (!dirPath) return;
-
-		const adapter = this.app.vault.adapter as FileSystemAdapter;
-		if (!(await adapter.exists(dirPath))) {
-			await adapter.mkdir(dirPath);
+	private getSourcesFolder(frontmatterSources?: string): string {
+		// Use frontmatter override if provided
+		if (frontmatterSources && frontmatterSources.trim() !== "") {
+			return normalizePath(frontmatterSources);
 		}
+
+		// Fall back to settings
+		return this.settings.sources_folder;
 	}
 
 	/**
-	 * Handle bibliography generation with proper error handling
+	 * Get bibliography filename with frontmatter override
+	 */
+	private getBibliographyFilename(frontmatter: {
+		[key: string]: string;
+	}): string {
+		// Check for typst_bibfile override
+		if ("typst_bibfile" in frontmatter) {
+			const bibfile = frontmatter.typst_bibfile;
+			if (bibfile && bibfile.trim() !== "") {
+				return normalizePath(bibfile);
+			}
+		}
+
+		// Fall back to settings
+		return this.settings.bibliographyFilename;
+	}
+
+	/**
+	 * Handle bibliography generation with simplified API-only logic
 	 */
 	async handleBibliographyGeneration(
-		typstBib: string | undefined,
-		outputBibPath: string,
-		fallbackSourcesFolder?: string
+		frontmatter: { [key: string]: string },
+		exportPaths: ExportPaths
 	): Promise<{ success: boolean; path?: string; error?: string }> {
 		try {
-			// If no typst_bib specified, try to use sources folder as fallback
-			if (!typstBib && fallbackSourcesFolder) {
-				if (this.settings.useBibliographyAPI) {
-					const isAvailable =
-						await this.checkBibliographyPluginAvailability();
-					if (isAvailable) {
-						const path = await this.generateBibliographyViaAPI(
-							fallbackSourcesFolder,
-							outputBibPath
-						);
-						return { success: true, path };
-					} else {
-						throw new Error(
-							`Bibliography Manager plugin not available. Cannot generate bibliography from sources folder: ${fallbackSourcesFolder}`
-						);
-					}
-				} else {
-					throw new Error(
-						`Cannot generate bibliography because no typst_bib specified and Bibliography API is disabled. Please enable the API or specify a .bib file path.`
-					);
-				}
+			// If API is disabled, do nothing (user will handle via template folder)
+			if (!this.settings.useBibliographyAPI) {
+				return { success: true };
 			}
 
-			// Handle typst_bib if specified
-			if (typstBib) {
-				const path = await this.generateBibliographyFromTypstBib(
-					typstBib,
-					outputBibPath
+			// Check API availability
+			const isAvailable =
+				await this.checkBibliographyPluginAvailability();
+			if (!isAvailable) {
+				throw new Error(
+					"Bibliography Manager plugin not available. Please install the plugin to use automatic bibliography generation."
 				);
-				if (path) {
-					return { success: true, path };
-				}
 			}
 
-			// No bibliography generated, but that's okay
-			return { success: true };
+			// Get sources folder (with frontmatter override)
+			const sourceFolder = this.getSourcesFolder(
+				frontmatter.typst_sourcefolder
+			);
+			if (!sourceFolder) {
+				throw new Error(
+					"No sources folder specified. Please configure the sources folder in settings or provide 'typst_sourcefolder' in frontmatter."
+				);
+			}
+
+			// Get bibliography filename (with frontmatter override)
+			const bibFilename = this.getBibliographyFilename(frontmatter);
+
+			if (bibFilename.trim() === "") {
+				console.warn("No bibfile Name provided, skipping");
+				return {
+					success: false,
+					error: "No bibfile Name provided in settings or frontmatter",
+				};
+			}
+
+			const finalBibPath = exportPaths.bibFile.replace(
+				/[^/]+$/,
+				bibFilename
+			);
+
+			// Debug: Log paths before API call
+			console.log("DEBUG - folderToUse:", sourceFolder);
+			console.log("DEBUG - outputBibPath:", exportPaths.bibFile);
+			console.log("DEBUG - bibFilename:", bibFilename);
+			console.log("DEBUG - finalBibPath:", finalBibPath);
+
+			// Generate bibliography via API
+			const path = await this.generateBibliographyViaAPI(
+				sourceFolder,
+				exportPaths.outputFolderPath,
+				bibFilename
+			);
+
+			return { success: true, path };
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);

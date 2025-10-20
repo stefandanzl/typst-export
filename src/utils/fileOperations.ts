@@ -121,7 +121,8 @@ export class FileOperations {
 	static createExportPaths(
 		baseFolderPath: string,
 		activeFile: TFile,
-		exportFormat: "typst" = "typst"
+		exportFormat: "typst" = "typst",
+		bibliographyFilename: string = "bibliography.bib"
 	) {
 		const outputFolderName = this.generateSafeFilename(activeFile.basename);
 		const outputFolderPath = joinNormPath(baseFolderPath, outputFolderName);
@@ -136,7 +137,7 @@ export class FileOperations {
 			outputFilePath,
 			headerPath: joinNormPath(outputFolderPath, fileNames.HEADER),
 			preamblePath: joinNormPath(outputFolderPath, fileNames.PREAMBLE),
-			bibPath: joinNormPath(outputFolderPath, fileNames.BIBLIOGRAPHY),
+			bibFile: joinNormPath(outputFolderPath, bibliographyFilename),
 			attachmentsPath: joinNormPath(
 				outputFolderPath,
 				fileNames.ATTACHMENTS_FOLDER

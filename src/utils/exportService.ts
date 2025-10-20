@@ -108,34 +108,6 @@ export class ExportService {
 	}
 
 	/**
-	 * Get typst_bib setting from frontmatter or settings
-	 */
-	private getTypstBibSetting(
-		frontmatter: { [key: string]: string },
-		settings: ExportPluginSettings
-	): string | null {
-		// Check typst_bib setting from frontmatter first
-		if ("typst_bib" in frontmatter) {
-			const typstBib = frontmatter.typst_bib;
-			if (typstBib && typstBib !== "" && typstBib !== null) {
-				return normalizePath(typstBib);
-			}
-		}
-
-		// Fall back to settings for traditional .bib file
-		if (settings.bib_file && settings.bib_file !== "") {
-			return settings.bib_file;
-		}
-
-		// Fall back to sources folder
-		if (settings.sources_folder && settings.sources_folder !== "") {
-			return settings.sources_folder;
-		}
-
-		return null;
-	}
-
-	/**
 	 * Exports a file to an external folder
 	 */
 	async exportToExternalFolder(config: ExportConfig): Promise<ExportResult> {
@@ -155,7 +127,8 @@ export class ExportService {
 			const exportPaths = FileOperations.createExportPaths(
 				outputPath,
 				activeFile,
-				"typst"
+				"typst",
+				settings.bibliographyFilename
 			);
 
 			// Parse the content
@@ -200,7 +173,8 @@ export class ExportService {
 				parsedContents.yaml,
 				exportPaths,
 				settings,
-				messageBuilder
+				messageBuilder,
+				parsedContents
 			);
 
 			// 4. Write the main output file (mainmd.tex) last
@@ -312,7 +286,9 @@ export class ExportService {
 				parsedContents.yaml,
 				exportPaths,
 				settings,
-				messageBuilder
+				messageBuilder,
+				parsedContents,
+				config
 			);
 
 			// 4. Check if output file exists and handle accordingly
@@ -427,7 +403,8 @@ export class ExportService {
 		frontmatter: { [key: string]: string },
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		parsedContents: parsed_longform
 	): Promise<void> {
 		// Handle header file first
 		await this.fileManager.handleHeaderFileExternal(
@@ -438,16 +415,23 @@ export class ExportService {
 		);
 
 		// Handle bibliography using the new service
-		const typstBib = this.getTypstBibSetting(frontmatter, settings);
+		// All frontmatter overrides are handled within the bibliographyService
 		const result =
 			await this.bibliographyService.handleBibliographyGeneration(
-				typstBib || undefined,
-				exportPaths.bibPath,
-				settings.sources_folder
+				frontmatter,
+				exportPaths
 			);
 
 		if (result.success && result.path) {
-			// console.log(`Bibliography handled: ${result.path}`);
+			// Add bibliography filename to parsedContents for template use
+			// Extract just the filename from the full path
+			const generatedBibPath = result.path;
+			const bibFilename =
+				generatedBibPath.split("/").pop() ||
+				generatedBibPath.split("\\").pop() ||
+				"bibliography.bib";
+			parsedContents.bibliography = bibFilename;
+			// console.log(`Bibliography handled: ${bibPath}, template variable: ${bibFilename}`);
 		} else if (result.error) {
 			console.warn(`Bibliography generation failed: ${result.error}`);
 			// Don't fail the entire export, just continue without bibliography
@@ -461,27 +445,38 @@ export class ExportService {
 		frontmatter: { [key: string]: string },
 		exportPaths: ExportPaths,
 		settings: ExportPluginSettings,
-		messageBuilder: ExportMessageBuilder
+		messageBuilder: ExportMessageBuilder,
+		parsedContents: parsed_longform,
+		config: ExportConfig
 	): Promise<void> {
 		// Handle header file first
-		await this.fileManager.handleHeaderFileVault(
+		/**
+		 * await this.fileManager.handleHeaderFileVault(
 			exportPaths.headerPath,
 			messageBuilder,
 			"typst",
 			settings.replace_existing_files
 		);
+		**/
 
 		// Handle bibliography using the new service
-		const typstBib = this.getTypstBibSetting(frontmatter, settings);
+		// All frontmatter overrides are handled within the bibliographyService
 		const result =
 			await this.bibliographyService.handleBibliographyGeneration(
-				typstBib || undefined,
-				exportPaths.bibPath,
-				settings.sources_folder
+				frontmatter,
+				exportPaths
 			);
 
 		if (result.success && result.path) {
-			// console.log(`Bibliography handled: ${result.path}`);
+			// Add bibliography filename to parsedContents for template use
+			// Extract just the filename from the full path
+			const generatedBibPath = result.path;
+			const bibFilename =
+				generatedBibPath.split("/").pop() ||
+				generatedBibPath.split("\\").pop() ||
+				"bibliography.bib";
+			parsedContents.bibliography = bibFilename;
+			// console.log(`Bibliography handled: ${bibPath}, template variable: ${bibFilename}`);
 		} else if (result.error) {
 			console.warn(`Bibliography generation failed: ${result.error}`);
 			// Don't fail the entire export, just continue without bibliography
@@ -601,7 +596,10 @@ export class ExportService {
 			),
 			headerPath: joinNormPath(outputFolderPath, fileNames.HEADER),
 			preamblePath: joinNormPath(outputFolderPath, fileNames.PREAMBLE),
-			bibPath: joinNormPath(outputFolderPath, fileNames.BIBLIOGRAPHY),
+			bibFile: joinNormPath(
+				outputFolderPath,
+				settings.bibliographyFilename
+			),
 			attachmentsPath: joinNormPath(
 				outputFolderPath,
 				fileNames.ATTACHMENTS_FOLDER

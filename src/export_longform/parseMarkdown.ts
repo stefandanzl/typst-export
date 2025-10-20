@@ -60,6 +60,7 @@ export type parsed_longform = {
 	media_files: TFile[];
 	bib_keys: string[];
 	sections: { [key: string]: string };
+	bibliography?: string; // Optional bibliography filename for template use
 };
 
 /**
@@ -233,6 +234,12 @@ export async function write_with_template(
 			dataMap.set(section, content || ""); // Also store with original case
 		}
 
+		// Add bibliography filename if available
+		if (parsed_contents["bibliography"]) {
+			dataMap.set("bibliography", parsed_contents["bibliography"]);
+			dataMap.set("bibliography", parsed_contents["bibliography"]); // Also with original case
+		}
+
 		// Find and replace ALL {{placeholder}} patterns (including hyphens)
 		template_content = template_content.replace(
 			/\{\{([a-zA-Z_][a-zA-Z0-9_-]*)\}\}/g,
@@ -264,6 +271,12 @@ export async function write_with_template(
 		)) {
 			dataMap.set(section.toLowerCase(), content || "");
 			dataMap.set(section, content || ""); // Also store with original case
+		}
+
+		// Add bibliography filename if available
+		if (parsed_contents["bibliography"]) {
+			dataMap.set("bibliography", parsed_contents["bibliography"]);
+			dataMap.set("bibliography", parsed_contents["bibliography"]); // Also with original case
 		}
 
 		// Find and replace ALL $placeholder$ patterns (including hyphens)
@@ -317,7 +330,7 @@ export async function write_without_template(
 	if (preamble_file !== undefined) {
 		content += "\\input{" + preamble_file.name + "}\n";
 	}
-	content += `\\addbibresource{bibliography.bib}\n`;
+	content += `\\addbibresource{$bibliography$}\n`;
 	content += `\\title{`;
 	if (parsed_contents["yaml"]["title"] !== undefined) {
 		content += parsed_contents["yaml"]["title"];
