@@ -35,7 +35,7 @@ export interface FileCopyConfig {
  */
 export interface FileOperationResult {
 	readonly success: boolean;
-	readonly action: 'copied' | 'overwritten' | 'skipped' | 'created';
+	readonly action: "copied" | "overwritten" | "skipped" | "created";
 	readonly error?: Error;
 }
 
@@ -97,4 +97,38 @@ export interface ExportValidationResult {
 	readonly isValid: boolean;
 	readonly errors: string[];
 	readonly warnings: string[];
+}
+
+// API interface that other plugins can use
+export interface BibliographyAPI {
+	/**
+	 * Export bibliography content from sources
+	 * @param sourcesFolder - Source files folder (defaults to plugin settings)
+	 * @param format - Export format: "bibtex", "csl-json", "hayagriva" (optional, auto-detects if nullish + outputFilename provided)
+	 * @param outputFilename - Output filename (optional, used for format auto-detection)
+	 * @returns Promise<string> Generated bibliography content
+	 *
+	 * @example
+	 * // Export using plugin defaults
+	 * const bib = await api.exportBibliography();
+	 *
+	 * @example
+	 * // Auto-detect format from filename (format is nullish)
+	 * const bib = await api.exportBibliography(undefined, null, "my-bib.json");
+	 *
+	 * @example
+	 * // Specific format with custom filename
+	 * const bib = await api.exportBibliography('sources', 'bibtex', 'references.bib');
+	 */
+	exportBibliography(
+		sourcesFolder?: string,
+		outputFilename?: string,
+		format?: "bibtex" | "csl-json" | "hayagriva" | ""
+	): Promise<string>;
+
+	exportBibliographyToPath(
+		sourcesFolder?: string,
+		outputFilename?: string,
+		format?: "bibtex" | "csl-json" | "hayagriva" | ""
+	): Promise<string>;
 }

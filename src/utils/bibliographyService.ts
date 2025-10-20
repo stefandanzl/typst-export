@@ -1,19 +1,6 @@
 import { App, Notice, FileSystemAdapter, normalizePath } from "obsidian";
 import { ExportPluginSettings } from "../export_longform/interfaces";
-
-export interface BibliographyAPI {
-	generateBibliography(config?: {
-		sourcesFolder?: string;
-		bibliographyFile?: string;
-		includeFiles?: string[];
-	}): Promise<string>;
-
-	exportBibliographyToPath(config: {
-		sourcesFolder?: string;
-		outputPath: string;
-		format?: "bibtex" | "csl-json";
-	}): Promise<string>;
-}
+import { BibliographyAPI } from "./interfaces";
 
 export class BibliographyService {
 	constructor(private app: App, private settings: ExportPluginSettings) {}
@@ -127,10 +114,11 @@ export class BibliographyService {
 				throw new Error("Bibliography API not available");
 			}
 
-			const bibPath = await bibPlugin.api.exportBibliographyToPath({
-				sourcesFolder: normalizePath(sourcesFolder),
-				outputPath: normalizePath(outputPath),
-			});
+			const bibPath = await bibPlugin.api.exportBibliographyToPath(
+				normalizePath(sourcesFolder),
+				normalizePath(outputPath),
+				""
+			);
 
 			// console.log(`Generated bibliography via API: ${bibPath}`);
 			return bibPath;
